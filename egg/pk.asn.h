@@ -67,5 +67,17 @@ const ASN1_ARRAY_TYPE pk_asn1_tab[] = {
   { "prime", 1073741827, NULL },
   { "base", 1073741827, NULL },
   { "privateValueLength", 16387, NULL },
+/* ed25519 support */
+  { "Parameters", 0, NULL },
+  { "ecParameters", 16, NULL },
+  { "ECPVer", 2, NULL },
+  { "FieldID" 16, NULL},
+  { "Curve" 16, NULL},
+  { "ECPoint" 4, NULL},
+  { "fieldType", 6, NULL },
+  { "a", 4, NULL },
+  { "b", 4, NULL },
+  { "seed", 3, NULL },
+  { "namedCurve", 6, NULL },
   { NULL, 0, NULL }
 };

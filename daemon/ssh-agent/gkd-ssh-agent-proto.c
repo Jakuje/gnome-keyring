@@ -40,6 +40,8 @@ gkd_ssh_agent_proto_keytype_to_algo (const gchar *salgo)
 		return CKK_RSA;
 	else if (strcmp (salgo, "ssh-dss") == 0)
 		return CKK_DSA;
+	else if (strcmp (salgo, "ssh-ed25519") == 0)
+		return CKK_EC;
 	return G_MAXULONG;
 }
 
@@ -50,6 +52,8 @@ gkd_ssh_agent_proto_algo_to_keytype (gulong algo)
 		return "ssh-rsa";
 	else if (algo == CKK_DSA)
 		return "ssh-dss";
+	else if (algo == CKK_EC)
+		return "ssh-ed25519";
 	return NULL;
 }
 
@@ -203,6 +207,9 @@ gkd_ssh_agent_proto_read_public (EggBuffer *req,
 		break;
 	case CKK_DSA:
 		ret = gkd_ssh_agent_proto_read_public_dsa (req, offset, attrs);
+		break;
+	case CKK_EC:
+		ret = gkd_ssh_agent_proto_read_public_ed25519 (req, offset, attrs);
 		break;
 	default:
 		g_assert_not_reached ();
@@ -391,6 +398,68 @@ gkd_ssh_agent_proto_read_public_dsa (EggBuffer *req,
 	/* Add in your basic other required attributes */
 	gck_builder_add_ulong (attrs, CKA_CLASS, CKO_PUBLIC_KEY);
 	gck_builder_add_ulong (attrs, CKA_KEY_TYPE, CKK_DSA);
+
+	return TRUE;
+}
+
+gboolean
+gkd_ssh_agent_proto_read_pair_ed25519 (EggBuffer *req,
+                                       gsize *offset,
+                                       GckBuilder *priv_attrs,
+                                       GckBuilder *pub_attrs)
+{
+	const GckAttribute *attr;
+
+	g_assert (req);
+	g_assert (offset);
+	g_assert (priv_attrs);
+	g_assert (pub_attrs);
+
+	if (!gkd_ssh_agent_proto_read_mpi (req, offset, priv_attrs, CKA_MODULUS) ||
+	    !gkd_ssh_agent_proto_read_mpi (req, offset, priv_attrs, CKA_PUBLIC_EXPONENT) ||
+	    !gkd_ssh_agent_proto_read_mpi (req, offset, priv_attrs, CKA_PRIVATE_EXPONENT) ||
+	    !gkd_ssh_agent_proto_read_mpi (req, offset, priv_attrs, CKA_COEFFICIENT) ||
+	    !gkd_ssh_agent_proto_read_mpi (req, offset, priv_attrs, CKA_PRIME_1) ||
+	    !gkd_ssh_agent_proto_read_mpi (req, offset, priv_attrs, CKA_PRIME_2))
+		return FALSE;
+
+	/* Copy attributes to the public key */
+	attr = gck_builder_find (priv_attrs, CKA_MODULUS);
+	gck_builder_add_attribute (pub_attrs, attr);
+	attr = gck_builder_find (priv_attrs, CKA_PUBLIC_EXPONENT);
+	gck_builder_add_attribute (pub_attrs, attr);
+
+	/* Add in your basic other required attributes */
+	gck_builder_add_ulong (priv_attrs, CKA_CLASS, CKO_PRIVATE_KEY);
+	gck_builder_add_ulong (priv_attrs, CKA_KEY_TYPE, CKK_RSA);
+	gck_builder_add_ulong (pub_attrs, CKA_CLASS, CKO_PUBLIC_KEY);
+	gck_builder_add_ulong (pub_attrs, CKA_KEY_TYPE, CKK_RSA);
+
+	return TRUE;
+}
+
+/* XXX XXX */
+#define crypto_sign_ed25519_SECRETKEYBYTES 64U 
+#define crypto_sign_ed25519_PUBLICKEYBYTES 32U 
+#define crypto_sign_ed25519_BYTES 64U 
+
+gboolean
+gkd_ssh_agent_proto_read_public_ed25519 (EggBuffer *req,
+                                         gsize *offset,
+                                         GckBuilder *attrs)
+{
+	g_assert (req);
+	g_assert (offset);
+	g_assert (attrs);
+
+	gcry_pk_get_nbits(
+	if (!gkd_ssh_agent_proto_read_mpi (req, offset, attrs, CKA_EC_PARAMS);
+		return FALSE;
+
+	/* Add in your basic other required attributes */
+	gck_builder_add_ulong (attrs, CKA_CLASS, CKO_PUBLIC_KEY);
+	gck_builder_add_ulong (attrs, CKA_KEY_TYPE, CKK_EC);
+	gck_builder_add_ulong (attrs, CKA_EC_POIN, );
 
 	return TRUE;
 }
