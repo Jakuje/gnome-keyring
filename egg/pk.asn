@@ -101,5 +101,42 @@ DHParameter ::= SEQUENCE {
 	privateValueLength INTEGER OPTIONAL 
 }
 
+-- from pkcs11
+Parameters ::= CHOICE {
+  ecParameters  ECParameters,
+  namedCurve    CURVES.&id({CurveNames}),
+  implicitlyCA  NULL
+}
+
+-- from RFC3279
+ECParameters ::= SEQUENCE {
+   version   ECPVer,          -- version is always 1
+   fieldID   FieldID,         -- identifies the finite field over
+                              -- which the curve is defined
+   curve     Curve,           -- coefficients a and b of the
+                              -- elliptic curve
+   base      ECPoint,         -- specifies the base point P
+                              -- on the elliptic curve
+   order     INTEGER,         -- the order n of the base point
+   cofactor  INTEGER OPTIONAL -- The integer h = #E(Fq)/n
+   }
+
+FieldID ::= SEQUENCE {
+   fieldType   OBJECT IDENTIFIER,
+   parameters  ANY DEFINED BY fieldType
+}
+
+ECPVer ::= INTEGER {ecpVer1(1)}
+
+Curve ::= SEQUENCE {
+   a         FieldElement,
+   b         FieldElement,
+   seed      BIT STRING OPTIONAL
+}
+
+FieldElement ::= OCTET STRING
+
+ECPoint ::= OCTET STRING
+
 
 END

@@ -402,6 +402,47 @@ gkd_ssh_agent_proto_read_public_dsa (EggBuffer *req,
 	return TRUE;
 }
 
+/* XXX XXX */
+#define crypto_sign_ed25519_SECRETKEYBYTES 64U
+#define crypto_sign_ed25519_PUBLICKEYBYTES 32U
+#define crypto_sign_ed25519_BYTES 64U
+
+GBytes *
+gkd_ssh_agent_proto_add_ed25519_params(GckBuilder *attrs)
+{
+	GNode *params, *named_curve;
+	GBytes *data;
+
+	params = egg_asn1x_create (pk_asn1_tab, "Parameters");
+	g_return_val_if_fail (params, NULL);
+
+	named_curve = egg_asn1x_node (params, "namedCurve", NULL);
+	g_return_val_if_fail (named_curve, NULL);
+
+	egg_asn1x_set_oid_as_string (named_curve, "1.3.100.101"):
+
+	if (!egg_asn1x_set_choice (params, named_curve))
+		return NULL;
+
+	data = egg_asn1x_encode (asn1_params, NULL);
+	gck_builder_add_data (attrs, CKA_EC_PARAMS, data, g_bytes_get_size (data));
+}
+
+gboolean
+gkd_ssh_agent_proto_read_bytes (EggBuffer *req,
+                                gsize *offset,
+                                GckBuilder *attrs)
+{
+	const guchar *data;
+	gsize len;
+
+	if (!egg_buffer_get_byte_array (req, *offset, offset, &data, &len))
+		return FALSE;
+
+	gck_builder_add_data (builder, type, data, len);
+	return TRUE;
+}
+
 gboolean
 gkd_ssh_agent_proto_read_pair_ed25519 (EggBuffer *req,
                                        gsize *offset,
@@ -415,33 +456,24 @@ gkd_ssh_agent_proto_read_pair_ed25519 (EggBuffer *req,
 	g_assert (priv_attrs);
 	g_assert (pub_attrs);
 
-	if (!gkd_ssh_agent_proto_read_mpi (req, offset, priv_attrs, CKA_MODULUS) ||
-	    !gkd_ssh_agent_proto_read_mpi (req, offset, priv_attrs, CKA_PUBLIC_EXPONENT) ||
-	    !gkd_ssh_agent_proto_read_mpi (req, offset, priv_attrs, CKA_PRIVATE_EXPONENT) ||
-	    !gkd_ssh_agent_proto_read_mpi (req, offset, priv_attrs, CKA_COEFFICIENT) ||
-	    !gkd_ssh_agent_proto_read_mpi (req, offset, priv_attrs, CKA_PRIME_1) ||
-	    !gkd_ssh_agent_proto_read_mpi (req, offset, priv_attrs, CKA_PRIME_2))
+	if (!gkd_ssh_agent_proto_read_bytes (req, offset, priv_attrs, CKA_VALUE) ||
+	    !gkd_ssh_agent_proto_read_bytes (req, offset, priv_attrs, CKA_EC_POINT)) // XXX this should not be here
 		return FALSE;
 
+	gkd_ssh_agent_proto_add_ed25519_params (priv_attrs);
+
 	/* Copy attributes to the public key */
-	attr = gck_builder_find (priv_attrs, CKA_MODULUS);
-	gck_builder_add_attribute (pub_attrs, attr);
-	attr = gck_builder_find (priv_attrs, CKA_PUBLIC_EXPONENT);
+	attr = gck_builder_find (priv_attrs, CKA_EC_PARAMS);
 	gck_builder_add_attribute (pub_attrs, attr);
 
 	/* Add in your basic other required attributes */
 	gck_builder_add_ulong (priv_attrs, CKA_CLASS, CKO_PRIVATE_KEY);
-	gck_builder_add_ulong (priv_attrs, CKA_KEY_TYPE, CKK_RSA);
+	gck_builder_add_ulong (priv_attrs, CKA_KEY_TYPE, CKK_EC);
 	gck_builder_add_ulong (pub_attrs, CKA_CLASS, CKO_PUBLIC_KEY);
-	gck_builder_add_ulong (pub_attrs, CKA_KEY_TYPE, CKK_RSA);
+	gck_builder_add_ulong (pub_attrs, CKA_KEY_TYPE, CKK_EC);
 
 	return TRUE;
 }
-
-/* XXX XXX */
-#define crypto_sign_ed25519_SECRETKEYBYTES 64U 
-#define crypto_sign_ed25519_PUBLICKEYBYTES 32U 
-#define crypto_sign_ed25519_BYTES 64U 
 
 gboolean
 gkd_ssh_agent_proto_read_public_ed25519 (EggBuffer *req,
@@ -452,14 +484,20 @@ gkd_ssh_agent_proto_read_public_ed25519 (EggBuffer *req,
 	g_assert (offset);
 	g_assert (attrs);
 
-	gcry_pk_get_nbits(
-	if (!gkd_ssh_agent_proto_read_mpi (req, offset, attrs, CKA_EC_PARAMS);
+	if (!gkd_ssh_agent_proto_read_bytes (req, offset, priv_attrs, CKA_EC_POINT))
 		return FALSE;
+
+	// XXX not sure if we can represent this in pkcs11 
+	/*asn1_q = egg_asn1x_create (pk_asn1_tab, "ECPoint");
+	egg_asn1x_set_string_as_bytes (asn1_q, "\x04");
+	gck_builder_add_ulong (attrs, CKA_EC_POINT, egg_asn1x_encode (asn1_q, NULL));*/
 
 	/* Add in your basic other required attributes */
 	gck_builder_add_ulong (attrs, CKA_CLASS, CKO_PUBLIC_KEY);
 	gck_builder_add_ulong (attrs, CKA_KEY_TYPE, CKK_EC);
-	gck_builder_add_ulong (attrs, CKA_EC_POIN, );
+
+
+	gkd_ssh_agent_proto_add_ed25519_params (attrs);
 
 	return TRUE;
 }
@@ -488,6 +526,10 @@ gkd_ssh_agent_proto_write_public (EggBuffer *resp, GckAttributes *attrs)
 
 	case CKK_DSA:
 		ret = gkd_ssh_agent_proto_write_public_dsa (resp, attrs);
+		break;
+
+	case CKK_EC:
+		ret = gkd_ssh_agent_proto_write_public_ed25519 (resp, attrs);
 		break;
 
 	default:
@@ -551,6 +593,42 @@ gkd_ssh_agent_proto_write_public_dsa (EggBuffer *resp, GckAttributes *attrs)
 	g_return_val_if_fail (attr, FALSE);
 
 	if (!gkd_ssh_agent_proto_write_mpi (resp, attr))
+		return FALSE;
+
+	return TRUE;
+}
+
+gboolean
+gkd_ssh_agent_proto_write_data (EggBuffer *resp,
+                                const GckAttribute *attr)
+{
+	const guchar *value;
+	guchar *data;
+	gsize n_extra;
+
+	g_assert (resp);
+	g_assert (attr);
+
+	data = egg_buffer_add_byte_array_empty (resp, attr->length);
+	if (data == NULL)
+		return FALSE;
+
+	memcpy (data, attr->value, attr->length);
+	return TRUE;
+}
+
+gboolean
+gkd_ssh_agent_proto_write_public_ed25519 (EggBuffer *resp, GckAttributes *attrs)
+{
+	const GckAttribute *attr;
+
+	g_assert (resp);
+	g_assert (attrs);
+
+	attr = gck_attributes_find (attrs, CKA_EC_POINT);
+	g_return_val_if_fail (attr, FALSE);
+
+	if (!gkd_ssh_agent_proto_write_data (resp, attr))
 		return FALSE;
 
 	return TRUE;

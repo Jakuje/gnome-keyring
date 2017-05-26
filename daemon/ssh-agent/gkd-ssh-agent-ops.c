@@ -112,6 +112,11 @@ build_like_attributes (GckAttributes *attrs, CK_OBJECT_CLASS klass)
 		copy_attribute (attrs, CKA_VALUE, &builder);
 		break;
 
+	case CKK_EC:
+		copy_attribute (attrs, CKA_EC_PARAMS, &builder);
+		copy_attribute (attrs, CKA_VALUE, &builder);
+		break;
+
 	default:
 		g_return_val_if_reached (NULL);
 		break;
@@ -306,7 +311,8 @@ load_identity_v2_attributes (GckObject *object, gpointer user_data)
 
 	attrs = gck_object_get (object, NULL, &error, CKA_ID, CKA_LABEL, CKA_KEY_TYPE, CKA_MODULUS,
 	                        CKA_PUBLIC_EXPONENT, CKA_PRIME, CKA_SUBPRIME, CKA_BASE,
-	                        CKA_VALUE, CKA_CLASS, CKA_MODULUS_BITS, CKA_TOKEN, GCK_INVALID);
+	                        CKA_VALUE, CKA_CLASS, CKA_MODULUS_BITS, CKA_TOKEN,
+	                        CKA_EC_POINT, CKA_EC_PARAMS, GCK_INVALID);
 	if (error) {
 		g_warning ("error retrieving attributes for public key: %s", egg_error_message (error));
 		g_clear_error (&error);
@@ -642,6 +648,9 @@ op_add_identity (GkdSshAgentCall *call)
 		break;
 	case CKK_DSA:
 		ret = gkd_ssh_agent_proto_read_pair_dsa (call->req, &offset, &priv, &pub);
+		break;
+	case CKK_EC:
+		ret = gkd_ssh_agent_proto_read_pair_ed25519 (call->req, &offset, &priv, &pub);
 		break;
 	default:
 		g_assert_not_reached ();
@@ -1022,6 +1031,8 @@ op_sign_request (GkdSshAgentCall *call)
 		mech = CKM_RSA_PKCS;
 	else if (algo == CKK_DSA)
 		mech = CKM_DSA;
+	else if (algo == CKK_EC)
+		mech = CKM_ECDSA;
 	else
 		g_return_val_if_reached (FALSE);
 
@@ -1087,6 +1098,10 @@ op_sign_request (GkdSshAgentCall *call)
 
 	case CKK_DSA:
 		ret = gkd_ssh_agent_proto_write_signature_dsa (call->resp, result, n_result);
+		break;
+
+	case CKK_EC:
+		ret = gkd_ssh_agent_proto_write_signature_ed25519 (call->resp, result, n_result);
 		break;
 
 	default:
