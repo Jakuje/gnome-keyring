@@ -26,6 +26,8 @@
 
 #include "egg/egg-buffer.h"
 
+#include "pkcs11/gkm/gkm-data-der.h"
+
 #include <gck/gck.h>
 
 #include <glib.h>
@@ -407,31 +409,24 @@ gkd_ssh_agent_proto_read_public_dsa (EggBuffer *req,
 #define crypto_sign_ed25519_PUBLICKEYBYTES 32U
 #define crypto_sign_ed25519_BYTES 64U
 
-GBytes *
+gboolean
 gkd_ssh_agent_proto_add_ed25519_params(GckBuilder *attrs)
 {
-	GNode *params, *named_curve;
-	GBytes *data;
+	const guchar *data;
 
-	params = egg_asn1x_create (pk_asn1_tab, "Parameters");
-	g_return_val_if_fail (params, NULL);
+	data = (guchar *) gkm_data_der_write_ec_params("1.3.100.101");
+	if (!data)
+		return FALSE;
 
-	named_curve = egg_asn1x_node (params, "namedCurve", NULL);
-	g_return_val_if_fail (named_curve, NULL);
-
-	egg_asn1x_set_oid_as_string (named_curve, "1.3.100.101"):
-
-	if (!egg_asn1x_set_choice (params, named_curve))
-		return NULL;
-
-	data = egg_asn1x_encode (asn1_params, NULL);
-	gck_builder_add_data (attrs, CKA_EC_PARAMS, data, g_bytes_get_size (data));
+	gck_builder_add_data (attrs, CKA_EC_PARAMS, data, sizeof (data));
+	return TRUE;
 }
 
 gboolean
 gkd_ssh_agent_proto_read_bytes (EggBuffer *req,
                                 gsize *offset,
-                                GckBuilder *attrs)
+                                GckBuilder *attrs,
+                                CK_ATTRIBUTE_TYPE type)
 {
 	const guchar *data;
 	gsize len;
@@ -439,7 +434,7 @@ gkd_ssh_agent_proto_read_bytes (EggBuffer *req,
 	if (!egg_buffer_get_byte_array (req, *offset, offset, &data, &len))
 		return FALSE;
 
-	gck_builder_add_data (builder, type, data, len);
+	gck_builder_add_data (attrs, type, data, len);
 	return TRUE;
 }
 
@@ -484,7 +479,7 @@ gkd_ssh_agent_proto_read_public_ed25519 (EggBuffer *req,
 	g_assert (offset);
 	g_assert (attrs);
 
-	if (!gkd_ssh_agent_proto_read_bytes (req, offset, priv_attrs, CKA_EC_POINT))
+	if (!gkd_ssh_agent_proto_read_bytes (req, offset, attrs, CKA_EC_POINT))
 		return FALSE;
 
 	// XXX not sure if we can represent this in pkcs11 
@@ -602,9 +597,7 @@ gboolean
 gkd_ssh_agent_proto_write_data (EggBuffer *resp,
                                 const GckAttribute *attr)
 {
-	const guchar *value;
 	guchar *data;
-	gsize n_extra;
 
 	g_assert (resp);
 	g_assert (attr);
@@ -677,5 +670,11 @@ gboolean
 gkd_ssh_agent_proto_write_signature_dsa (EggBuffer *resp, CK_BYTE_PTR signature, CK_ULONG n_signature)
 {
 	g_return_val_if_fail (n_signature == 40, FALSE);
+	return egg_buffer_add_byte_array (resp, signature, n_signature);
+}
+
+gboolean
+gkd_ssh_agent_proto_write_signature_ed25519 (EggBuffer *resp, CK_BYTE_PTR signature, CK_ULONG n_signature)
+{
 	return egg_buffer_add_byte_array (resp, signature, n_signature);
 }

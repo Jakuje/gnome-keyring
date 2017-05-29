@@ -121,4 +121,12 @@ GkmDataResult      gkm_data_der_read_enhanced_usage        (GBytes *data,
 
 GBytes *           gkm_data_der_write_certificate          (GNode *asn1);
 
+
+/* -----------------------------------------------------------------------------
+ * ECC
+ */
+
+GBytes *           gkm_data_der_write_ec_params            (char *oid_named_curve);
+
+
 #endif /*GKRPKIXDER_H_*/

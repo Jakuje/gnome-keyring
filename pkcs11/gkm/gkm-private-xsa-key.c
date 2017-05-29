@@ -160,7 +160,7 @@ create_ed25519_private (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs, gcry_sexp_t *s
 
 	gcry = gcry_sexp_build (skey, NULL,
 	                        "(private-key (ecc (curve \"Ed25519\") (flags eddsa) (q %b) (d %b)))",
-	                        qlen, q, dlen, d);
+	                        strlen(q), q, strlen(d), d); // XXX strlen() -- might be arbitrary data!
 
 	if (gcry != 0) {
 		g_message ("couldn't create ED25519 key from passed attributes: %s", gcry_strerror (gcry));
@@ -168,18 +168,12 @@ create_ed25519_private (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs, gcry_sexp_t *s
 		goto done;
 	}
 
-	gkm_attributes_consume (attrs, n_attrs, CKA_MODULUS, CKA_PUBLIC_EXPONENT,
-	                        CKA_PRIVATE_EXPONENT, CKA_PRIME_1, CKA_PRIME_2,
-	                        CKA_EXPONENT_1, CKA_EXPONENT_2, CKA_COEFFICIENT, G_MAXULONG);
+	gkm_attributes_consume (attrs, n_attrs, CKA_EC_PARAMS, G_MAXULONG);
 	ret = CKR_OK;
 
 done:
-	gcry_mpi_release (n);
-	gcry_mpi_release (e);
-	gcry_mpi_release (d);
-	gcry_mpi_release (p);
-	gcry_mpi_release (q);
-	gcry_mpi_release (u);
+	free (d);
+	free (q);
 	return ret;
 }
 
@@ -436,7 +430,7 @@ gkm_private_xsa_key_create_sexp (GkmSession *session, GkmTransaction *transactio
 		ret = create_dsa_private (attrs, n_attrs, &sexp);
 		break;
 	case CKK_EC:
-		ret = create_ec25519_private (attrs, n_attrs, &sexp);
+		ret = create_ed25519_private (attrs, n_attrs, &sexp);
 		break;
 	default:
 		ret = CKR_ATTRIBUTE_VALUE_INVALID;

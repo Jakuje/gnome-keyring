@@ -110,6 +110,16 @@ gboolean              gkd_ssh_agent_proto_read_mpi                  (EggBuffer *
                                                                      GckBuilder *attrs,
                                                                      CK_ATTRIBUTE_TYPE type);
 
+gboolean              gkd_ssh_agent_proto_add_ed25519_params        (GckBuilder *attrs);
+
+gboolean              gkd_ssh_agent_proto_read_bytes                (EggBuffer *req,
+                                                                     gsize *offset,
+                                                                     GckBuilder *attrs,
+                                                                     CK_ATTRIBUTE_TYPE type);
+
+gboolean              gkd_ssh_agent_proto_write_data                (EggBuffer *resp,
+                                                                     const GckAttribute *attr);
+
 gboolean              gkd_ssh_agent_proto_read_mpi_v1               (EggBuffer *req,
                                                                      gsize *offset,
                                                                      GckBuilder *attrs,
@@ -138,6 +148,10 @@ gboolean              gkd_ssh_agent_proto_read_public_dsa           (EggBuffer *
                                                                      gsize *offset,
                                                                      GckBuilder *attrs);
 
+gboolean              gkd_ssh_agent_proto_read_public_ed25519       (EggBuffer *req,
+                                                                     gsize *offset,
+                                                                     GckBuilder *attrs);
+
 gboolean              gkd_ssh_agent_proto_read_public_v1            (EggBuffer *req,
                                                                      gsize *offset,
                                                                      GckBuilder *attrs);
@@ -148,6 +162,11 @@ gboolean              gkd_ssh_agent_proto_read_pair_rsa             (EggBuffer *
                                                                      GckBuilder *pub);
 
 gboolean              gkd_ssh_agent_proto_read_pair_dsa             (EggBuffer *req,
+                                                                     gsize *offset,
+                                                                     GckBuilder *priv,
+                                                                     GckBuilder *pub);
+
+gboolean              gkd_ssh_agent_proto_read_pair_ed25519         (EggBuffer *req,
                                                                      gsize *offset,
                                                                      GckBuilder *priv,
                                                                      GckBuilder *pub);
@@ -166,6 +185,9 @@ gboolean              gkd_ssh_agent_proto_write_public_rsa          (EggBuffer *
 gboolean              gkd_ssh_agent_proto_write_public_dsa          (EggBuffer *resp,
                                                                      GckAttributes *attrs);
 
+gboolean              gkd_ssh_agent_proto_write_public_ed25519      (EggBuffer *resp,
+                                                                     GckAttributes *attrs);
+
 gboolean              gkd_ssh_agent_proto_write_public_v1           (EggBuffer *resp,
                                                                      GckAttributes *attrs);
 
@@ -174,6 +196,10 @@ gboolean              gkd_ssh_agent_proto_write_signature_rsa       (EggBuffer *
                                                                      CK_ULONG n_signature);
 
 gboolean              gkd_ssh_agent_proto_write_signature_dsa       (EggBuffer *resp,
+                                                                     CK_BYTE_PTR signature,
+                                                                     CK_ULONG n_signature);
+
+gboolean              gkd_ssh_agent_proto_write_signature_ed25519   (EggBuffer *resp,
                                                                      CK_BYTE_PTR signature,
                                                                      CK_ULONG n_signature);
 

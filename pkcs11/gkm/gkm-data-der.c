@@ -1286,3 +1286,31 @@ gkm_data_der_write_certificate (GNode *asn1)
 
 	return result;
 }
+
+/* -----------------------------------------------------------------------------
+ * ECC
+ */
+
+GBytes *
+gkm_data_der_write_ec_params (char *oid_named_curve)
+{
+	GBytes *result;
+	GNode *params, *named_curve;
+
+	params = egg_asn1x_create (pk_asn1_tab, "Parameters");
+	g_return_val_if_fail (params, NULL);
+
+	named_curve = egg_asn1x_node (params, "namedCurve", NULL);
+	g_return_val_if_fail (named_curve, NULL);
+
+	egg_asn1x_set_oid_as_string (named_curve, oid_named_curve);
+
+	if (!egg_asn1x_set_choice (params, named_curve))
+		return NULL;
+
+	result = egg_asn1x_encode (params, NULL);
+	if (result == NULL)
+		g_warning ("couldn't encode EC params: %s", egg_asn1x_message (params));
+
+	return result;
+}
