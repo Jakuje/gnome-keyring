@@ -140,6 +140,36 @@ done:
 	return ret;
 }
 
+static CK_RV
+create_ed25519_public (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs, gcry_sexp_t *skey)
+{
+	gcry_error_t gcry;
+	gchar *q = NULL;
+	CK_RV ret;
+
+	if (!gkm_attributes_find_string (attrs, n_attrs, CKA_VALUE, &q)) {
+		ret = CKR_TEMPLATE_INCOMPLETE;
+		goto done;
+	}
+
+	gcry = gcry_sexp_build (skey, NULL,
+	                        "(public-key (ecc (curve \"Ed25519\") (flags eddsa) (q %b)))",
+	                        strlen(q), q); // XXX strlen() -- might be arbitrary data!
+
+	if (gcry != 0) {
+		g_message ("couldn't create ED25519 key from passed attributes: %s", gcry_strerror (gcry));
+		ret = CKR_FUNCTION_FAILED;
+		goto done;
+	}
+
+	gkm_attributes_consume (attrs, n_attrs, CKA_VALUE, G_MAXULONG);
+	ret = CKR_OK;
+
+done:
+	free (q);
+	return ret;
+}
+
 static GkmObject*
 factory_create_public_xsa_key (GkmSession *session, GkmTransaction *transaction,
                                CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs)
@@ -285,6 +315,9 @@ gkm_public_xsa_key_create_sexp (GkmSession *session, GkmTransaction *transaction
 		break;
 	case CKK_DSA:
 		ret = create_dsa_public (attrs, n_attrs, &sexp);
+		break;
+	case CKK_EC:
+		ret = create_ed25519_public (attrs, n_attrs, &sexp);
 		break;
 	default:
 		ret = CKR_ATTRIBUTE_VALUE_INVALID;
