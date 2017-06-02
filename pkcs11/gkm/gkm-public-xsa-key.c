@@ -155,7 +155,7 @@ create_ecdsa_public (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs, gcry_sexp_t *skey
 	}
 
 	gcry = gcry_sexp_build (skey, NULL,
-	                        "(public-key (ecdsa (curve %s) (q %s)))",
+	                        "(public-key (ecdsa (curve %b) (q %b)))",
 	                        strlen(curve_name), curve_name, strlen(q), q); // XXX
 
 	if (gcry != 0) {

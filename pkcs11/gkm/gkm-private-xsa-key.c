@@ -161,7 +161,7 @@ create_ecdsa_private (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs, gcry_sexp_t *ske
 	}
 
 	gcry = gcry_sexp_build (skey, NULL,
-	                        "(private-key (ecdsa (curve %s) (q %s) (d %m)))",
+	                        "(private-key (ecdsa (curve %b) (q %b) (d %m)))",
 	                        strlen(curve_name), curve_name, strlen(q), q, d);
 
 	if (gcry != 0) {

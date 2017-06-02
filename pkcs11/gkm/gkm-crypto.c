@@ -24,6 +24,7 @@
 #include "gkm-aes-mechanism.h"
 #include "gkm-dh-mechanism.h"
 #include "gkm-dsa-mechanism.h"
+#include "gkm-ecdsa-mechanism.h"
 #include "gkm-hkdf-mechanism.h"
 #include "gkm-null-mechanism.h"
 #include "gkm-rsa-mechanism.h"
@@ -299,6 +300,7 @@ gkm_crypto_sign (GkmSession *session, CK_MECHANISM_TYPE mech, CK_BYTE_PTR data,
 	case CKM_RSA_PKCS:
 	case CKM_RSA_X_509:
 	case CKM_DSA:
+	case CKM_ECDSA:
 		sexp = gkm_session_get_crypto_state (session);
 		g_return_val_if_fail (sexp, CKR_GENERAL_ERROR);
 		return gkm_crypto_sign_xsa (gkm_sexp_get (sexp), mech, data, n_data, signature, n_signature);
@@ -340,6 +342,10 @@ gkm_crypto_sign_xsa (gcry_sexp_t sexp, CK_MECHANISM_TYPE mech, CK_BYTE_PTR data,
 		g_return_val_if_fail (algorithm == GCRY_PK_DSA, CKR_GENERAL_ERROR);
 		rv = gkm_dsa_mechanism_sign (sexp, data, n_data, signature, n_signature);
 		break;
+	case CKM_ECDSA:
+		g_return_val_if_fail (algorithm == GCRY_PK_ECC, CKR_GENERAL_ERROR);
+		rv = gkm_ecdsa_mechanism_sign (sexp, data, n_data, signature, n_signature);
+		break;
 	default:
 		/* Again shouldn't be reached */
 		g_return_val_if_reached (CKR_GENERAL_ERROR);
@@ -358,6 +364,7 @@ gkm_crypto_verify (GkmSession *session, CK_MECHANISM_TYPE mech, CK_BYTE_PTR data
 	case CKM_RSA_PKCS:
 	case CKM_RSA_X_509:
 	case CKM_DSA:
+	case CKM_ECDSA:
 		sexp = gkm_session_get_crypto_state (session);
 		g_return_val_if_fail (sexp, CKR_GENERAL_ERROR);
 		return gkm_crypto_verify_xsa (gkm_sexp_get (sexp), mech, data, n_data, signature, n_signature);
@@ -398,6 +405,10 @@ gkm_crypto_verify_xsa (gcry_sexp_t sexp, CK_MECHANISM_TYPE mech, CK_BYTE_PTR dat
 	case CKM_DSA:
 		g_return_val_if_fail (algorithm == GCRY_PK_DSA, CKR_GENERAL_ERROR);
 		rv = gkm_dsa_mechanism_verify (sexp, data, n_data, signature, n_signature);
+		break;
+	case CKM_ECDSA:
+		g_return_val_if_fail (algorithm == GCRY_PK_ECC, CKR_GENERAL_ERROR);
+		rv = gkm_ecdsa_mechanism_verify (sexp, data, n_data, signature, n_signature);
 		break;
 	default:
 		/* Again shouldn't be reached */

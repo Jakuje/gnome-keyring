@@ -53,9 +53,16 @@ EGG_SECURE_DEFINE_GLIB_GLOBALS ();
 "  (y #54734451DB79D4EEDF0BBCEBD43BB6CBB7B8584603B957080075DD318EB5B0266D4B20DC5EFF376BDFC4EA2983B1F7F02A39ED4C619ED68712729FFF3B7C696ADD1B6D748F56A4B4BEC5C4385E528423A3B88AE65E6D5500F97839E7A486255982189C3B4FA8D94338C76F0E5CAFC9A30A1ED728BB9F2091D594E3250A09EA00#)" \
 "  (x #00876F84F709D51108DFB0CBFA1F1C569C09C413EC#)))"
 
+#define TEST_ECDSA \
+"(private-key (ecdsa " \
+"  (curve \"NIST P-256\")" \
+"  (q #04D4F6A6738D9B8D3A7075C1E4EE95015FC0C9B7E4272D2BEB6644D3609FC781B71F9A8072F58CB66AE2F89BB12451873ABF7D91F9E1FBF96BF2F70E73AAC9A283#)" \
+"  (d #5A1EF0035118F19F3110FB81813D3547BCE1E5BCE77D1F744715E1D5BBE70378#)))"
+
 typedef struct {
 	gcry_sexp_t rsakey;
 	gcry_sexp_t dsakey;
+	gcry_sexp_t ecdsakey;
 } Test;
 
 static void
@@ -69,6 +76,8 @@ setup (Test *test, gconstpointer unused)
 	g_return_if_fail (gcry == 0);
 	gcry = gcry_sexp_new (&test->dsakey, TEST_DSA, strlen (TEST_DSA), 1);
 	g_return_if_fail (gcry == 0);
+	gcry = gcry_sexp_new (&test->ecdsakey, TEST_ECDSA, strlen (TEST_ECDSA), 1);
+	g_return_if_fail (gcry == 0);
 }
 
 static void
@@ -78,6 +87,8 @@ teardown (Test *test, gconstpointer unused)
 	test->rsakey = NULL;
 	gcry_sexp_release (test->dsakey);
 	test->dsakey = NULL;
+	gcry_sexp_release (test->ecdsakey);
+	test->ecdsakey = NULL;
 }
 
 static void
@@ -89,6 +100,7 @@ test_parse_key (Test *test, gconstpointer unused)
 	gboolean is_priv = FALSE;
 	int algorithm = 0;
 
+	/* RSA */
 	/* Get the private key out */
 	ret = gkm_sexp_parse_key (test->rsakey, &algorithm, &is_priv, &sexp);
 	g_assert (ret);
@@ -98,6 +110,34 @@ test_parse_key (Test *test, gconstpointer unused)
 	gcry_sexp_release (sexp);
 
 	ret = gkm_sexp_extract_mpi (test->rsakey, &mpi, "p", NULL);
+	g_assert (ret);
+	g_assert (mpi != NULL);
+	gcry_mpi_release (mpi);
+
+	/* DSA */
+	/* Get the private key out */
+	ret = gkm_sexp_parse_key (test->dsakey, &algorithm, &is_priv, &sexp);
+	g_assert (ret);
+	g_assert (algorithm == GCRY_PK_DSA);
+	g_assert (is_priv == TRUE);
+	g_assert (sexp != NULL);
+	gcry_sexp_release (sexp);
+
+	ret = gkm_sexp_extract_mpi (test->dsakey, &mpi, "p", NULL);
+	g_assert (ret);
+	g_assert (mpi != NULL);
+	gcry_mpi_release (mpi);
+
+	/* ECDSA */
+	/* Get the private key out */
+	ret = gkm_sexp_parse_key (test->ecdsakey, &algorithm, &is_priv, &sexp);
+	g_assert (ret);
+	g_assert (algorithm == GCRY_PK_ECC);
+	g_assert (is_priv == TRUE);
+	g_assert (sexp != NULL);
+	gcry_sexp_release (sexp);
+
+	ret = gkm_sexp_extract_mpi (test->ecdsakey, &mpi, "d", NULL);
 	g_assert (ret);
 	g_assert (mpi != NULL);
 	gcry_mpi_release (mpi);
@@ -140,6 +180,20 @@ test_key_to_public (Test *test, gconstpointer unused)
 
 	gcry_sexp_release (pubkey);
 
+
+	/* ECDSA */
+	ret = gkm_sexp_key_to_public (test->ecdsakey, &pubkey);
+	g_assert (ret);
+	g_assert (pubkey != NULL);
+
+	p = gcry_pk_get_keygrip (test->ecdsakey, id1);
+	g_return_if_fail (p == id1);
+	p = gcry_pk_get_keygrip (pubkey, id2);
+	g_return_if_fail (p == id2);
+
+	g_assert (memcmp (id1, id2, sizeof (id1)) == 0);
+
+	gcry_sexp_release (pubkey);
 }
 
 int

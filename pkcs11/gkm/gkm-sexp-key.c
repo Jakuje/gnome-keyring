@@ -64,7 +64,7 @@ gkm_sexp_key_real_get_attribute (GkmObject *base, GkmSession *session, CK_ATTRIB
 				return gkm_attribute_set_ulong (attr, CKK_RSA);
 			case GCRY_PK_DSA:
 				return gkm_attribute_set_ulong (attr, CKK_DSA);
-			case GCRY_PK_ECDSA:
+			case GCRY_PK_ECC:
 				return gkm_attribute_set_ulong (attr, CKK_ECDSA);
 			default:
 				g_return_val_if_reached (CKR_GENERAL_ERROR);
@@ -103,7 +103,7 @@ gkm_sexp_key_real_get_attribute (GkmObject *base, GkmSession *session, CK_ATTRIB
 		case GCRY_PK_DSA:
 			return gkm_attribute_set_data (attr, (CK_VOID_PTR)GKM_DSA_MECHANISMS,
 			                               sizeof (GKM_DSA_MECHANISMS));
-		case GCRY_PK_ECDSA:
+		case GCRY_PK_ECC:
 			return gkm_attribute_set_data (attr, (CK_VOID_PTR)GKM_ECDSA_MECHANISMS,
 			                               sizeof (GKM_ECDSA_MECHANISMS));
 		default:

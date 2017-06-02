@@ -206,7 +206,7 @@ ecdsa_numbers_to_public (gcry_sexp_t ecdsa)
 	    !gkm_sexp_extract_buffer (ecdsa, &q, &q_len, "q", NULL))
 		goto done;
 
-	gcry = gcry_sexp_build (&pubkey, NULL, "(public-key (ecdsa (curve %s) (q %s)))",
+	gcry = gcry_sexp_build (&pubkey, NULL, "(public-key (ecdsa (curve %b) (q %b)))",
 	                        curve_name_len, curve_name, q_len, q);
 	if (gcry)
 		goto done;
@@ -235,7 +235,7 @@ gkm_sexp_key_to_public (gcry_sexp_t privkey, gcry_sexp_t *pubkey)
 	case GCRY_PK_DSA:
 		*pubkey = dsa_numbers_to_public (numbers);
 		break;
-	case GCRY_PK_ECDSA:
+	case GCRY_PK_ECC:
 		*pubkey = ecdsa_numbers_to_public (numbers);
 		break;
 	default:
