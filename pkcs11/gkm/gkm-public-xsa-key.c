@@ -21,6 +21,7 @@
 #include "config.h"
 
 #include "pkcs11/pkcs11.h"
+#include "pkcs11/pkcs11i.h"
 
 #include "gkm-attributes.h"
 #define DEBUG_FLAG GKM_DEBUG_OBJECT
@@ -137,6 +138,39 @@ done:
 	gcry_mpi_release (q);
 	gcry_mpi_release (g);
 	gcry_mpi_release (y);
+	return ret;
+}
+
+static CK_RV
+create_ecdsa_public (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs, gcry_sexp_t *skey)
+{
+	gcry_error_t gcry;
+	gchar *curve_name = NULL, *q = NULL;
+	CK_RV ret;
+
+	if (!gkm_attributes_find_string (attrs, n_attrs, CKA_G_CURVE_NAME, &curve_name) ||
+	    !gkm_attributes_find_string (attrs, n_attrs, CKA_EC_POINT, &q)) {
+		ret = CKR_TEMPLATE_INCOMPLETE;
+		goto done;
+	}
+
+	gcry = gcry_sexp_build (skey, NULL,
+	                        "(public-key (ecdsa (curve %s) (q %s)))",
+	                        strlen(curve_name), curve_name, strlen(q), q); // XXX
+
+	if (gcry != 0) {
+		g_message ("couldn't create ECDSA key from passed attributes: %s", gcry_strerror (gcry));
+		ret = CKR_FUNCTION_FAILED;
+		goto done;
+	}
+
+	gkm_attributes_consume (attrs, n_attrs, CKA_G_CURVE_NAME, CKA_EC_POINT,
+	                        G_MAXULONG);
+	ret = CKR_OK;
+
+done:
+	free (q);
+	free (curve_name);
 	return ret;
 }
 
@@ -285,6 +319,9 @@ gkm_public_xsa_key_create_sexp (GkmSession *session, GkmTransaction *transaction
 		break;
 	case CKK_DSA:
 		ret = create_dsa_public (attrs, n_attrs, &sexp);
+		break;
+	case CKK_EC:
+		ret = create_ecdsa_public (attrs, n_attrs, &sexp);
 		break;
 	default:
 		ret = CKR_ATTRIBUTE_VALUE_INVALID;

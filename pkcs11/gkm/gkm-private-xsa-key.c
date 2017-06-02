@@ -21,6 +21,7 @@
 #include "config.h"
 
 #include "pkcs11/pkcs11.h"
+#include "pkcs11/pkcs11i.h"
 
 #include "gkm-attributes.h"
 #include "gkm-credential.h"
@@ -141,6 +142,42 @@ done:
 	gcry_mpi_release (g);
 	gcry_mpi_release (y);
 	gcry_mpi_release (value);
+	return ret;
+}
+
+static CK_RV
+create_ecdsa_private (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs, gcry_sexp_t *skey)
+{
+	gcry_error_t gcry;
+	gcry_mpi_t d = NULL;
+	gchar *curve_name = NULL, *q = NULL;
+	CK_RV ret;
+
+	if (!gkm_attributes_find_string (attrs, n_attrs, CKA_G_CURVE_NAME, &curve_name) ||
+	    !gkm_attributes_find_string (attrs, n_attrs, CKA_EC_POINT, &q) ||
+	    !gkm_attributes_find_mpi (attrs, n_attrs, CKA_VALUE, &d)) {
+		ret = CKR_TEMPLATE_INCOMPLETE;
+		goto done;
+	}
+
+	gcry = gcry_sexp_build (skey, NULL,
+	                        "(private-key (ecdsa (curve %s) (q %s) (d %m)))",
+	                        strlen(curve_name), curve_name, strlen(q), q, d);
+
+	if (gcry != 0) {
+		g_message ("couldn't create ECDSA key from passed attributes: %s", gcry_strerror (gcry));
+		ret = CKR_FUNCTION_FAILED;
+		goto done;
+	}
+
+	gkm_attributes_consume (attrs, n_attrs, CKA_G_CURVE_NAME,
+	                        CKA_EC_POINT, CKA_VALUE, G_MAXULONG);
+	ret = CKR_OK;
+
+done:
+	free (curve_name);
+	free (q);
+	gcry_mpi_release (d);
 	return ret;
 }
 
@@ -395,6 +432,9 @@ gkm_private_xsa_key_create_sexp (GkmSession *session, GkmTransaction *transactio
 		break;
 	case CKK_DSA:
 		ret = create_dsa_private (attrs, n_attrs, &sexp);
+		break;
+	case CKK_EC:
+		ret = create_ecdsa_private (attrs, n_attrs, &sexp);
 		break;
 	default:
 		ret = CKR_ATTRIBUTE_VALUE_INVALID;

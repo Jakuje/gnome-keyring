@@ -26,6 +26,7 @@
 #define DEBUG_FLAG GKM_DEBUG_OBJECT
 #include "gkm-debug.h"
 #include "gkm-dsa-mechanism.h"
+#include "gkm-ecdsa-mechanism.h"
 #include "gkm-rsa-mechanism.h"
 #include "gkm-sexp-key.h"
 #include "gkm-util.h"
@@ -63,6 +64,8 @@ gkm_sexp_key_real_get_attribute (GkmObject *base, GkmSession *session, CK_ATTRIB
 				return gkm_attribute_set_ulong (attr, CKK_RSA);
 			case GCRY_PK_DSA:
 				return gkm_attribute_set_ulong (attr, CKK_DSA);
+			case GCRY_PK_ECDSA:
+				return gkm_attribute_set_ulong (attr, CKK_ECDSA);
 			default:
 				g_return_val_if_reached (CKR_GENERAL_ERROR);
 			};
@@ -100,6 +103,9 @@ gkm_sexp_key_real_get_attribute (GkmObject *base, GkmSession *session, CK_ATTRIB
 		case GCRY_PK_DSA:
 			return gkm_attribute_set_data (attr, (CK_VOID_PTR)GKM_DSA_MECHANISMS,
 			                               sizeof (GKM_DSA_MECHANISMS));
+		case GCRY_PK_ECDSA:
+			return gkm_attribute_set_data (attr, (CK_VOID_PTR)GKM_ECDSA_MECHANISMS,
+			                               sizeof (GKM_ECDSA_MECHANISMS));
 		default:
 			g_return_val_if_reached (CKR_GENERAL_ERROR);
 		};
