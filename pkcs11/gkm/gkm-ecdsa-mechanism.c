@@ -41,7 +41,7 @@ gkm_ecdsa_mechanism_sign (gcry_sexp_t sexp, CK_BYTE_PTR data, CK_ULONG n_data,
 {
 	gcry_sexp_t ssig, splain;
 	gcry_error_t gcry;
-	CK_ULONG size, key_size;
+	CK_ULONG size, key_bytes;
 	CK_RV rv;
 
 	g_return_val_if_fail (sexp, CKR_GENERAL_ERROR);
@@ -52,12 +52,12 @@ gkm_ecdsa_mechanism_sign (gcry_sexp_t sexp, CK_BYTE_PTR data, CK_ULONG n_data,
 		return CKR_DATA_LEN_RANGE;*/
 
 	/* If no output, then don't process */
-	key_size = gcry_pk_get_nbits(sexp);
+	key_bytes = gcry_pk_get_nbits(sexp)/8;
 	if (!signature) {
-		*n_signature = key_size * 2;
+		*n_signature = key_bytes * 2;
 		return CKR_OK;
-	} else if (*n_signature < key_size*2) {
-		*n_signature = key_size * 2;
+	} else if (*n_signature < key_bytes * 2) {
+		*n_signature = key_bytes * 2;
 		return CKR_BUFFER_TOO_SMALL;
 	}
 
@@ -76,14 +76,14 @@ gkm_ecdsa_mechanism_sign (gcry_sexp_t sexp, CK_BYTE_PTR data, CK_ULONG n_data,
 		return CKR_FUNCTION_FAILED;
 	}
 
-	size = key_size;
+	size = key_bytes;
 	rv = gkm_crypto_sexp_to_buffer (ssig, signature, &size, NULL, "ecdsa", "r", NULL);
 	if (rv == CKR_OK) {
-		g_return_val_if_fail (size == key_size, CKR_GENERAL_ERROR);
-		rv = gkm_crypto_sexp_to_buffer (ssig, signature + key_size, &size, NULL, "ecdsa", "s", NULL);
+		g_return_val_if_fail (size == key_bytes, CKR_GENERAL_ERROR);
+		rv = gkm_crypto_sexp_to_buffer (ssig, signature + key_bytes, &size, NULL, "ecdsa", "s", NULL);
 		if (rv == CKR_OK) {
-			g_return_val_if_fail (size == key_size, CKR_GENERAL_ERROR);
-			*n_signature = key_size*2;
+			g_return_val_if_fail (size == key_bytes, CKR_GENERAL_ERROR);
+			*n_signature = key_bytes*2;
 		}
 	}
 
@@ -97,16 +97,16 @@ gkm_ecdsa_mechanism_verify (gcry_sexp_t sexp, CK_BYTE_PTR data, CK_ULONG n_data,
 {
 	gcry_sexp_t ssig, splain;
 	gcry_error_t gcry;
-	CK_ULONG key_size;
+	CK_ULONG key_bytes;
 
 	g_return_val_if_fail (sexp, CKR_GENERAL_ERROR);
 	g_return_val_if_fail (signature, CKR_ARGUMENTS_BAD);
 	g_return_val_if_fail (data, CKR_ARGUMENTS_BAD);
 
-	key_size = gcry_pk_get_nbits(sexp);
+	key_bytes = gcry_pk_get_nbits(sexp)/8;
 	/*if (n_data != 20)
 		return CKR_DATA_LEN_RANGE;*/
-	if (n_signature != key_size*2)
+	if (n_signature != key_bytes*2)
 		return CKR_SIGNATURE_LEN_RANGE;
 
 	/* Prepare the input s-expressions */
@@ -115,7 +115,7 @@ gkm_ecdsa_mechanism_verify (gcry_sexp_t sexp, CK_BYTE_PTR data, CK_ULONG n_data,
 	g_return_val_if_fail (gcry == 0, CKR_GENERAL_ERROR);
 
 	gcry = gcry_sexp_build (&ssig, NULL, "(sig-val (ecdsa (r %b) (s %b)))",
-                                key_size, signature, key_size, signature+key_size);
+                                key_bytes, signature, key_bytes, signature + key_bytes);
 	g_return_val_if_fail (gcry == 0, CKR_GENERAL_ERROR);
 
 	/* Do the magic */

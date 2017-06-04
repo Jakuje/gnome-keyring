@@ -59,6 +59,11 @@ EGG_SECURE_DEFINE_GLIB_GLOBALS ();
 "  (q #04D4F6A6738D9B8D3A7075C1E4EE95015FC0C9B7E4272D2BEB6644D3609FC781B71F9A8072F58CB66AE2F89BB12451873ABF7D91F9E1FBF96BF2F70E73AAC9A283#)" \
 "  (d #5A1EF0035118F19F3110FB81813D3547BCE1E5BCE77D1F744715E1D5BBE70378#)))"
 
+// test data 20 bytes for DSA
+#define TEST_DATA "Test data to sign..."
+#define TEST_DATA_SIZE 20
+
+
 typedef struct {
 	gcry_sexp_t rsakey;
 	gcry_sexp_t dsakey;
@@ -196,6 +201,74 @@ test_key_to_public (Test *test, gconstpointer unused)
 	gcry_sexp_release (pubkey);
 }
 
+static void
+test_sign_verify (Test *test, gconstpointer unused)
+{
+	gcry_sexp_t pubkey = NULL;
+	gboolean ret;
+	guchar data[] = TEST_DATA;
+	guchar data_size = TEST_DATA_SIZE;
+	guchar signature[128];
+	gsize signature_size = 128;
+
+	/* RSA */
+	/* sign some data */
+	ret = gkm_crypto_sign_xsa (test->rsakey, CKM_RSA_PKCS, data, data_size, signature, &signature_size);
+	g_assert (ret == CKR_OK);
+	g_assert (signature_size != 0);
+	g_assert (signature != NULL);
+
+	/* create a public key */
+	ret = gkm_sexp_key_to_public (test->rsakey, &pubkey);
+	g_assert (ret);
+	g_assert (pubkey != NULL);
+
+	/* verify the signature */
+	ret = gkm_crypto_verify_xsa (pubkey, CKM_RSA_PKCS, data, data_size, signature, signature_size);
+	g_assert (ret == CKR_OK);
+
+	/* reset for the next test */
+	gcry_sexp_release (pubkey);
+	signature_size = 512;
+
+	/* DSA */
+	/* sign some data */
+	ret = gkm_crypto_sign_xsa (test->dsakey, CKM_DSA, data, data_size, signature, &signature_size);
+	g_assert (ret == CKR_OK);
+	g_assert (signature_size != 0);
+	g_assert (signature != NULL);
+
+	/* create a public key */
+	ret = gkm_sexp_key_to_public (test->dsakey, &pubkey);
+	g_assert (ret);
+	g_assert (pubkey != NULL);
+
+	/* verify the signature */
+	ret = gkm_crypto_verify_xsa (pubkey, CKM_DSA, data, data_size, signature, signature_size);
+	g_assert (ret == CKR_OK);
+
+	/* reset for the next test */
+	gcry_sexp_release (pubkey);
+	signature_size = 512;
+
+	/* ECDSA */
+	/* sign some data */
+	ret = gkm_crypto_sign_xsa (test->ecdsakey, CKM_ECDSA, data, data_size, signature, &signature_size);
+	g_assert (ret == CKR_OK);
+	g_assert (signature_size != 0);
+	g_assert (signature != NULL);
+
+	/* create a public key */
+	ret = gkm_sexp_key_to_public (test->ecdsakey, &pubkey);
+	g_assert (ret);
+	g_assert (pubkey != NULL);
+
+	/* verify the signature */
+	ret = gkm_crypto_verify_xsa (pubkey, CKM_ECDSA, data, data_size, signature, signature_size);
+	g_assert (ret == CKR_OK);
+
+	gcry_sexp_release (pubkey);
+}
 int
 main (int argc, char **argv)
 {
@@ -206,6 +279,7 @@ main (int argc, char **argv)
 
 	g_test_add ("/gkm/sexp/parse_key", Test, NULL, setup, test_parse_key, teardown);
 	g_test_add ("/gkm/sexp/key_to_public", Test, NULL, setup, test_key_to_public, teardown);
+	g_test_add ("/gkm/sexp/sign_verify", Test, NULL, setup, test_sign_verify, teardown);
 
 	return g_test_run ();
 }

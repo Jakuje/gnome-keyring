@@ -175,6 +175,7 @@ gkm_crypto_sexp_to_buffer (gcry_sexp_t sexp, CK_BYTE_PTR data,
 	        return CKR_BUFFER_TOO_SMALL;
 
 	memcpy (data + (n_block - *n_data), block, n_block); // XXX pad with zeroes
+	//memcpy (data, block, n_block); // XXX pad with zeroes
 	*n_data = n_block;
 	g_free (block);
 
