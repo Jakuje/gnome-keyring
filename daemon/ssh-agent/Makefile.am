@@ -29,3 +29,26 @@ gkd_ssh_agent_standalone_LDADD = \
 	libegg-buffer.la \
 	libegg-secure.la \
 	$(DAEMON_LIBS)
+
+# ------------------------------------------------------------------------------
+# Tests
+
+ssh_agent_CFLAGS = \
+	$(GCK_CFLAGS)
+
+ssh_agent_LIBS = \
+	libgkd-ssh-agent.la \
+	libegg.la \
+	$(GLIB_LIBS) \
+	$(GCK_LIBS)
+	$(GTHREAD_LIBS)
+
+ssh_agent_TESTS = \
+	test-keytypes
+
+test_keytypes_SOURCES = daemon/ssh-agent/test-keytypes.c
+test_keytypes_CFLAGS = $(ssh_agent_CFLAGS)
+test_keytypes_LDADD = $(ssh_agent_LIBS)
+
+check_PROGRAMS += $(ssh_agent_TESTS)
+TESTS += $(ssh_agent_TESTS)

@@ -48,20 +48,40 @@ gkd_ssh_agent_proto_keytype_to_algo (const gchar *salgo)
 }
 
 const gchar*
+gkd_ssh_agent_proto_keytype_to_curve (const gchar *salgo)
+{
+	g_return_val_if_fail (salgo, NULL);
+	if (strcmp (salgo, "ecdsa-sha2-nistp256") == 0)
+		return "NIST P-256";
+	if (strcmp (salgo, "ecdsa-sha2-nistp384") == 0)
+		return "NIST P-384";
+	if (strcmp (salgo, "ecdsa-sha2-nistp521") == 0)
+		return "NIST P-521";
+	return NULL;
+}
+
+const gchar*
+gkd_ssh_agent_proto_curve_to_keytype (const gchar *ec_curve)
+{
+	g_return_val_if_fail (ec_curve, NULL);
+	if (strcmp (ec_curve, "NIST P-256") == 0)
+		return "ecdsa-sha2-nistp256";
+	else if (strcmp (ec_curve, "NIST P-384") == 0)
+		return "ecdsa-sha2-nistp384";
+	else if (strcmp (ec_curve, "NIST P-521") == 0)
+		return "ecdsa-sha2-nistp521";
+	return NULL;
+}
+
+const gchar*
 gkd_ssh_agent_proto_algo_to_keytype (gulong algo, const gchar *ec_curve)
 {
-	if (algo == CKK_RSA)
+	if (algo == CKK_RSA && ec_curve == NULL)
 		return "ssh-rsa";
-	else if (algo == CKK_DSA)
+	else if (algo == CKK_DSA && ec_curve == NULL)
 		return "ssh-dss";
-	else if (algo == CKK_EC) {
-		if (strcmp (ec_curve, "nistp256") == 0)
-			return "ecdsa-sha2-nistp256";
-		else if (strcmp (ec_curve, "nistp384") == 0)
-			return "ecdsa-sha2-nistp384";
-		else if (strcmp (ec_curve, "nistp521"))
-			return "ecdsa-sha2-nistp521";
-	}
+	else if (algo == CKK_EC)
+		return gkd_ssh_agent_proto_curve_to_keytype (ec_curve);
 	return NULL;
 }
 

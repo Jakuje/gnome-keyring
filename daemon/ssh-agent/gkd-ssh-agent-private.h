@@ -107,6 +107,10 @@ gulong                gkd_ssh_agent_proto_keytype_to_algo           (const gchar
 const gchar*          gkd_ssh_agent_proto_algo_to_keytype           (gulong algo,
                                                                      const gchar *ec_curve);
 
+const gchar*          gkd_ssh_agent_proto_keytype_to_curve          (const gchar *salgo);
+
+const gchar*          gkd_ssh_agent_proto_curve_to_keytype          (const gchar *ec_curve);
+
 gboolean              gkd_ssh_agent_proto_read_mpi                  (EggBuffer *req,
                                                                      gsize *offset,
                                                                      GckBuilder *attrs,
