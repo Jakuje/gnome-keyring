@@ -2,6 +2,7 @@
 # include "config.h"
 #endif
 
+/* Generated using  asn1Parser pk.asn -o pk.asn.h */
 /* #include <libtasn1.h> */
 
 const ASN1_ARRAY_TYPE pk_asn1_tab[] = {
