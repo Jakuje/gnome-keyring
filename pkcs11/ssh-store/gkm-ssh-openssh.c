@@ -39,7 +39,7 @@ keytype_to_algo (const gchar *salgo)
 	return 0;
 }
 
-static gchar *
+static const gchar *
 keytype_to_curve (const gchar *salgo)
 {
 	g_return_val_if_fail (salgo, 0);
@@ -113,13 +113,14 @@ static gboolean
 read_public_ecdsa (EggBuffer *req, gsize *offset, gcry_sexp_t *sexp, gchar *stype)
 {
 	int gcry;
-	gchar *curve_name = NULL, *q = NULL;
+	const gchar *curve_name = NULL;
+	gchar *q = NULL;
 
 	if (!egg_buffer_get_string (req, *offset, offset, &q, (EggBufferAllocator)g_realloc))
 		return FALSE;
 
 	curve_name = keytype_to_curve(stype);
-	g_return_val_if_fail (curve_name == NULL, FALSE);
+	g_return_val_if_fail (curve_name, FALSE);
 
 	gcry = gcry_sexp_build (sexp, NULL, SEXP_PUBLIC_ECDSA,
                                 strlen (curve_name), curve_name, strlen(q), q);
@@ -129,7 +130,6 @@ read_public_ecdsa (EggBuffer *req, gsize *offset, gcry_sexp_t *sexp, gchar *styp
 	}
 
 	g_free (q);
-	g_free (curve_name);
 
 	return TRUE;
 }
@@ -248,17 +248,21 @@ is_private_key_type (GQuark type)
 {
 	static GQuark PEM_RSA_PRIVATE_KEY;
 	static GQuark PEM_DSA_PRIVATE_KEY;
+	static GQuark PEM_ECDSA_PRIVATE_KEY;
 	static gsize quarks_inited = 0;
 
 	/* Initialize the first time through */
 	if (g_once_init_enter (&quarks_inited)) {
 		PEM_RSA_PRIVATE_KEY = g_quark_from_static_string ("RSA PRIVATE KEY");
 		PEM_DSA_PRIVATE_KEY = g_quark_from_static_string ("DSA PRIVATE KEY");
+		PEM_ECDSA_PRIVATE_KEY = g_quark_from_static_string ("EC PRIVATE KEY");
 		g_once_init_leave (&quarks_inited, 1);
 	}
 
 	/* Only handle SSHv2 private keys */
-	return (type == PEM_RSA_PRIVATE_KEY || type == PEM_DSA_PRIVATE_KEY);
+	return (type == PEM_RSA_PRIVATE_KEY ||
+		type == PEM_DSA_PRIVATE_KEY ||
+		type == PEM_ECDSA_PRIVATE_KEY);
 }
 
 static void

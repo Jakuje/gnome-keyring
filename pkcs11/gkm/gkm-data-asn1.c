@@ -27,6 +27,58 @@
 #include "egg/egg-asn1x.h"
 
 gboolean
+gkm_data_asn1_read_string_mpi (GNode *asn, gcry_mpi_t *mpi)
+{
+	gcry_error_t gcry;
+	GBytes *buf;
+	gsize sz;
+
+	g_return_val_if_fail (asn, FALSE);
+	g_return_val_if_fail (mpi, FALSE);
+
+	buf = egg_asn1x_get_string_as_bytes (asn);
+	if (!buf)
+		return FALSE;
+
+	/* Automatically stores in secure memory if DER data is secure */
+	sz = g_bytes_get_size (buf);
+	gcry = gcry_mpi_scan (mpi, GCRYMPI_FMT_STD, g_bytes_get_data (buf, NULL), sz, &sz);
+	g_bytes_unref (buf);
+	if (gcry != 0)
+		return FALSE;
+
+	return TRUE;
+}
+
+gboolean
+gkm_data_asn1_write_string_mpi (GNode *asn, gcry_mpi_t mpi)
+{
+	gcry_error_t gcry;
+	GBytes *bytes;
+	gsize len;
+	guchar *buf;
+
+	g_return_val_if_fail (asn, FALSE);
+	g_return_val_if_fail (mpi, FALSE);
+
+	/* Get the size */
+	gcry = gcry_mpi_print (GCRYMPI_FMT_STD, NULL, 0, &len, mpi);
+	g_return_val_if_fail (gcry == 0, FALSE);
+	g_return_val_if_fail (len > 0, FALSE);
+
+	buf = gcry_calloc_secure (len, 1);
+
+	gcry = gcry_mpi_print (GCRYMPI_FMT_STD, buf, len, &len, mpi);
+	g_return_val_if_fail (gcry == 0, FALSE);
+
+	bytes = g_bytes_new_with_free_func (buf, len, gcry_free, buf);
+	egg_asn1x_set_string_as_bytes (asn, bytes);
+	g_bytes_unref (bytes);
+
+	return TRUE;
+}
+
+gboolean
 gkm_data_asn1_read_mpi (GNode *asn, gcry_mpi_t *mpi)
 {
 	gcry_error_t gcry;
@@ -77,3 +129,84 @@ gkm_data_asn1_write_mpi (GNode *asn, gcry_mpi_t mpi)
 
 	return TRUE;
 }
+
+gboolean
+gkm_data_asn1_read_string (GNode *asn, GBytes **data)
+{
+	GBytes *buf;
+
+	g_return_val_if_fail (asn, FALSE);
+	g_return_val_if_fail (data, FALSE);
+
+	buf = egg_asn1x_get_string_as_bytes (asn);
+	if (!buf)
+		return FALSE;
+
+	*data = buf;
+	return TRUE;
+}
+
+gboolean
+gkm_data_asn1_write_string (GNode *asn, GBytes *data)
+{
+	g_return_val_if_fail (asn, FALSE);
+	g_return_val_if_fail (data, FALSE);
+
+	egg_asn1x_set_string_as_bytes (asn, data);
+
+	return TRUE;
+}
+
+gboolean
+gkm_data_asn1_read_bit_string (GNode *asn, GBytes **data)
+{
+	GBytes *buf;
+	guint n_bits;
+
+	g_return_val_if_fail (asn, FALSE);
+	g_return_val_if_fail (data, FALSE);
+
+	buf = egg_asn1x_get_bits_as_raw (asn, &n_bits);
+	if (!buf)
+		return FALSE;
+
+	*data = buf;
+	return TRUE;
+}
+
+gboolean
+gkm_data_asn1_write_bit_string (GNode *asn, GBytes *data)
+{
+	g_return_val_if_fail (asn, FALSE);
+	g_return_val_if_fail (data, FALSE);
+
+	egg_asn1x_set_bits_as_raw (asn, data, g_bytes_get_size(data)*8);
+
+	return TRUE;
+}
+
+gboolean
+gkm_data_asn1_read_oid (GNode *asn, GQuark *oid)
+{
+	GQuark q;
+
+	g_return_val_if_fail (asn, FALSE);
+	g_return_val_if_fail (oid, FALSE);
+
+	q = egg_asn1x_get_oid_as_quark (asn);
+	if (!q)
+		return FALSE;
+
+	*oid = q;
+	return TRUE;
+}
+
+gboolean
+gkm_data_asn1_write_oid (GNode *asn, GQuark oid)
+{
+	g_return_val_if_fail (asn, FALSE);
+	g_return_val_if_fail (oid, FALSE);
+
+	return egg_asn1x_set_oid_as_quark (asn, oid);
+}
+
