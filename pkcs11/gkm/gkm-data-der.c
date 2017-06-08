@@ -88,6 +88,7 @@ gkm_data_der_oid_to_curve (GQuark oid)
 GQuark
 gkm_data_der_curve_to_oid (gchar *curve)
 {
+	/* use g_quark_try_string () ??? */
 	if (strcmp(curve, "NIST P-256") == 0)
 		return OID_ANSI_SECP256R1;
 	else if (strcmp(curve, "NIST P-384") == 0)
@@ -550,6 +551,8 @@ gkm_data_der_read_public_key (GBytes *data, gcry_sexp_t *s_key)
 	res = gkm_data_der_read_public_key_rsa (data, s_key);
 	if (res == GKM_DATA_UNRECOGNIZED)
 		res = gkm_data_der_read_public_key_dsa (data, s_key);
+	if (res == GKM_DATA_UNRECOGNIZED)
+		res = gkm_data_der_read_public_key_ecdsa (data, s_key);
 
 	return res;
 }
@@ -1068,7 +1071,7 @@ done:
 GBytes *
 gkm_data_der_write_public_key_ecdsa (gcry_sexp_t s_key)
 {
-	GNode *asn = NULL;
+	GNode *asn = NULL, *named_curve;
 	gcry_mpi_t d = NULL;
 	GBytes *result = NULL, *q;
 	gchar *q_data = NULL;
@@ -1076,12 +1079,14 @@ gkm_data_der_write_public_key_ecdsa (gcry_sexp_t s_key)
 	gchar *curve = NULL;
 	gsize q_size;
 
+	init_quarks ();
+
 	asn = egg_asn1x_create (pk_asn1_tab, "ECPublicKey");
 	g_return_val_if_fail (asn, NULL);
 
 	if (!gkm_sexp_extract_buffer (s_key, &q_data, &q_size, "ecdsa", "q", NULL) ||
-	    !gkm_sexp_extract_buffer (s_key, &curve, NULL, "ecdsa", "namedCurve", NULL))
-		goto done; // XXX passing NULL instead of getting the string length
+	    !gkm_sexp_extract_string (s_key, &curve, "ecdsa", "curve", NULL))
+		goto done;
 
 	oid = gkm_data_der_curve_to_oid (curve);
 	g_free (curve);
@@ -1092,11 +1097,14 @@ gkm_data_der_write_public_key_ecdsa (gcry_sexp_t s_key)
 	if (q == NULL)
 		goto done;
 
+	named_curve = egg_asn1x_node (asn, "parameters", "namedCurve", NULL);
+
 	if (!gkm_data_asn1_write_bit_string (egg_asn1x_node (asn, "q", NULL), q) ||
-	    !gkm_data_asn1_write_oid (egg_asn1x_node (asn, "namedCurve", NULL), oid))
+	    !gkm_data_asn1_write_oid (named_curve, oid))
 		goto done;
 
-	egg_asn1x_set_integer_as_ulong (egg_asn1x_node (asn, "version", NULL), 0);
+	if (!egg_asn1x_set_choice (egg_asn1x_node(asn, "parameters", NULL), named_curve))
+		goto done;
 
 	result = egg_asn1x_encode (asn, egg_secure_realloc);
 	if (result == NULL)
@@ -1105,7 +1113,7 @@ gkm_data_der_write_public_key_ecdsa (gcry_sexp_t s_key)
 done:
 	egg_asn1x_destroy (asn);
 	gcry_mpi_release (d);
-	g_free (q);
+	g_bytes_unref (q);
 
 	return result;
 }
@@ -1113,7 +1121,7 @@ done:
 GBytes *
 gkm_data_der_write_private_key_ecdsa (gcry_sexp_t s_key)
 {
-	GNode *asn = NULL;
+	GNode *asn = NULL, *named_curve;
 	gcry_mpi_t d = NULL;
 	GBytes *result = NULL, *q;
 	gchar *q_data = NULL;
@@ -1121,13 +1129,15 @@ gkm_data_der_write_private_key_ecdsa (gcry_sexp_t s_key)
 	gchar *curve = NULL;
 	gsize q_size;
 
+	init_quarks ();
+
 	asn = egg_asn1x_create (pk_asn1_tab, "ECPrivateKey");
 	g_return_val_if_fail (asn, NULL);
 
 	if (!gkm_sexp_extract_mpi (s_key, &d, "ecdsa", "d", NULL) ||
 	    !gkm_sexp_extract_buffer (s_key, &q_data, &q_size, "ecdsa", "q", NULL) ||
-	    !gkm_sexp_extract_buffer (s_key, &curve, NULL, "ecdsa", "namedCurve", NULL))
-		goto done; // XXX passing NULL instead of getting the string length
+	    !gkm_sexp_extract_string (s_key, &curve, "ecdsa", "curve", NULL))
+		goto done;
 
 	oid = gkm_data_der_curve_to_oid (curve);
 	g_free (curve);
@@ -1138,12 +1148,17 @@ gkm_data_der_write_private_key_ecdsa (gcry_sexp_t s_key)
 	if (q == NULL)
 		goto done;
 
+	named_curve = egg_asn1x_node (asn, "parameters", "namedCurve", NULL);
+
 	if (!gkm_data_asn1_write_string_mpi (egg_asn1x_node (asn, "d", NULL), d) ||
 	    !gkm_data_asn1_write_bit_string (egg_asn1x_node (asn, "q", NULL), q) ||
-	    !gkm_data_asn1_write_oid (egg_asn1x_node (asn, "namedCurve", NULL), oid))
+	    !gkm_data_asn1_write_oid (named_curve, oid))
 		goto done;
 
-	egg_asn1x_set_integer_as_ulong (egg_asn1x_node (asn, "version", NULL), 0);
+	if (!egg_asn1x_set_choice (egg_asn1x_node(asn, "parameters", NULL), named_curve))
+		goto done;
+
+	egg_asn1x_set_integer_as_ulong (egg_asn1x_node (asn, "version", NULL), 1);
 
 	result = egg_asn1x_encode (asn, egg_secure_realloc);
 	if (result == NULL)
@@ -1152,7 +1167,7 @@ gkm_data_der_write_private_key_ecdsa (gcry_sexp_t s_key)
 done:
 	egg_asn1x_destroy (asn);
 	gcry_mpi_release (d);
-	g_free (q);
+	g_bytes_unref (q);
 
 	return result;
 }

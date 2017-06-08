@@ -269,6 +269,28 @@ gkm_sexp_extract_mpi (gcry_sexp_t sexp, gcry_mpi_t *mpi, ...)
 }
 
 gboolean
+gkm_sexp_extract_string (gcry_sexp_t sexp, gchar **buf, ...)
+{
+	gcry_sexp_t at = NULL;
+	va_list va;
+
+	g_assert (sexp);
+	g_assert (buf);
+
+	va_start (va, buf);
+	at = gkm_sexp_get_childv (sexp, va);
+	va_end (va);
+
+	*buf = NULL;
+	if (at)
+		*buf = gcry_sexp_nth_string (at ? at : sexp, 1);
+	if (at)
+		gcry_sexp_release (at);
+
+	return (*buf) ? TRUE : FALSE;
+}
+
+gboolean
 gkm_sexp_extract_buffer (gcry_sexp_t sexp, gchar **buf, gsize *bufsize, ...)
 {
 	gcry_sexp_t at = NULL;

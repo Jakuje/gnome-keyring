@@ -52,6 +52,10 @@ gboolean       gkm_sexp_extract_mpi              (gcry_sexp_t sexp,
                                                   gcry_mpi_t *mpi,
                                                   ...) G_GNUC_NULL_TERMINATED;
 
+gboolean       gkm_sexp_extract_string           (gcry_sexp_t sexp,
+                                                  gchar **buf,
+                                                  ...) G_GNUC_NULL_TERMINATED;
+
 gboolean       gkm_sexp_extract_buffer           (gcry_sexp_t sexp,
                                                   gchar **buf,
                                                   gsize *bufsize,
