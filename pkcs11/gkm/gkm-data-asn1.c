@@ -26,6 +26,7 @@
 
 #include "egg/egg-asn1x.h"
 
+/* ECDSA private key (d) is OCTET STRING encoded MPI */
 gboolean
 gkm_data_asn1_read_string_mpi (GNode *asn, gcry_mpi_t *mpi)
 {
@@ -130,33 +131,7 @@ gkm_data_asn1_write_mpi (GNode *asn, gcry_mpi_t mpi)
 	return TRUE;
 }
 
-gboolean
-gkm_data_asn1_read_string (GNode *asn, GBytes **data)
-{
-	GBytes *buf;
-
-	g_return_val_if_fail (asn, FALSE);
-	g_return_val_if_fail (data, FALSE);
-
-	buf = egg_asn1x_get_string_as_bytes (asn);
-	if (!buf)
-		return FALSE;
-
-	*data = buf;
-	return TRUE;
-}
-
-gboolean
-gkm_data_asn1_write_string (GNode *asn, GBytes *data)
-{
-	g_return_val_if_fail (asn, FALSE);
-	g_return_val_if_fail (data, FALSE);
-
-	egg_asn1x_set_string_as_bytes (asn, data);
-
-	return TRUE;
-}
-
+/* ECDSA public key (q) is encoded as a bit string */
 gboolean
 gkm_data_asn1_read_bit_string (GNode *asn, GBytes **data)
 {
@@ -185,6 +160,7 @@ gkm_data_asn1_write_bit_string (GNode *asn, GBytes *data)
 	return TRUE;
 }
 
+/* ECDSA differentiates curves based on the OID */
 gboolean
 gkm_data_asn1_read_oid (GNode *asn, GQuark *oid)
 {
@@ -209,4 +185,3 @@ gkm_data_asn1_write_oid (GNode *asn, GQuark oid)
 
 	return egg_asn1x_set_oid_as_quark (asn, oid);
 }
-

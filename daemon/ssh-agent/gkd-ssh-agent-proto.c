@@ -117,7 +117,7 @@ gkd_ssh_agent_proto_algo_to_keytype (gulong algo, GQuark oid)
 
 
 GQuark
-gkd_ssh_agent_proto_get_ecc_oid (GckAttributes *attrs)
+gkd_ssh_agent_proto_oid_from_params (GckAttributes *attrs)
 {
 	GBytes *bytes;
 	const GckAttribute *attr;
@@ -131,7 +131,7 @@ gkd_ssh_agent_proto_get_ecc_oid (GckAttributes *attrs)
 
 	bytes = g_bytes_new (attr->value, attr->length);
 
-	oid = gkm_data_der_get_ecc_oid (bytes);
+	oid = gkm_data_der_oid_from_params (bytes);
 
 	g_bytes_unref (bytes);
 
@@ -531,11 +531,13 @@ gkd_ssh_agent_proto_read_ecdsa_curve (EggBuffer *req,
 	g_assert (offset);
 	g_assert (attrs);
 
+	gkd_ssh_agent_proto_init_quarks ();
+
 	/* first part is the same as a key_type (ecdsa-sha2-nistp*) and needs
 	 * to be converted to CKA_EC_PARAMS
 	 */
 	if (!egg_buffer_get_string (req, *offset, offset, &curve_name,
-                                    (EggBufferAllocator)g_realloc))
+                                (EggBufferAllocator)g_realloc))
 		return FALSE;
 
 	oid = gkd_ssh_agent_proto_keytype_to_oid (curve_name);
@@ -562,8 +564,6 @@ gkd_ssh_agent_proto_read_pair_ecdsa (EggBuffer *req,
 	g_assert (offset);
 	g_assert (priv_attrs);
 	g_assert (pub_attrs);
-
-	gkd_ssh_agent_proto_init_quarks();
 
 	if (!gkd_ssh_agent_proto_read_ecdsa_curve (req, offset, priv_attrs) ||
 	    !gkd_ssh_agent_proto_read_string (req, offset, priv_attrs, CKA_EC_POINT) ||
@@ -621,7 +621,7 @@ gkd_ssh_agent_proto_write_public (EggBuffer *resp, GckAttributes *attrs)
 	if (!gck_attributes_find_ulong (attrs, CKA_KEY_TYPE, &algo))
 		g_return_val_if_reached (FALSE);
 	if (algo == CKK_EC) {
-		oid = gkd_ssh_agent_proto_get_ecc_oid (attrs);
+		oid = gkd_ssh_agent_proto_oid_from_params (attrs);
 		if (!oid)
 			return FALSE;
 	}
@@ -720,7 +720,9 @@ gkd_ssh_agent_proto_write_public_ecdsa (EggBuffer *resp, GckAttributes *attrs)
 	g_assert (resp);
 	g_assert (attrs);
 
-	oid = gkd_ssh_agent_proto_get_ecc_oid (attrs);
+	gkd_ssh_agent_proto_init_quarks ();
+
+	oid = gkd_ssh_agent_proto_oid_from_params (attrs);
 	g_return_val_if_fail (oid, FALSE);
 
 	key_type = gkd_ssh_agent_proto_oid_to_keytype (oid);

@@ -21,7 +21,6 @@
 #include "config.h"
 
 #include "pkcs11/pkcs11.h"
-#include "pkcs11/pkcs11i.h"
 
 #include "gkm-attributes.h"
 #define DEBUG_FLAG GKM_DEBUG_OBJECT
@@ -173,7 +172,7 @@ create_ecdsa_public (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs, gcry_sexp_t *skey
 		goto done;
 	}
 
-	gkm_attributes_consume (attrs, n_attrs, CKA_EC_POINT,
+	gkm_attributes_consume (attrs, n_attrs, CKA_EC_POINT, CKA_EC_PARAMS,
 	                        G_MAXULONG);
 	ret = CKR_OK;
 

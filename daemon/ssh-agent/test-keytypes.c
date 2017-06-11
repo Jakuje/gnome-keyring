@@ -38,13 +38,15 @@ struct alg {
 	GQuark		 oid;
 };
 
+/* can't use Quarks as a static initializers */
+
 /* known algorithms */
 static struct alg algs_known[] = {
 	{ "ssh-rsa", CKK_RSA, 0 },
 	{ "ssh-dss", CKK_DSA, 0 },
-	{ "ecdsa-sha2-nistp256", CKK_EC, 0 },
-	{ "ecdsa-sha2-nistp384", CKK_EC, 0 },
-	{ "ecdsa-sha2-nistp521", CKK_EC, 0 },
+	{ "ecdsa-sha2-nistp256", CKK_EC, 0 }, /* OID_ANSI_SECP256R1 */
+	{ "ecdsa-sha2-nistp384", CKK_EC, 0 }, /* OID_ANSI_SECP384R1 */
+	{ "ecdsa-sha2-nistp521", CKK_EC, 0 }, /* OID_ANSI_SECP521R1 */
 
 	/* terminator */
 	{ NULL, 0, 0 }
@@ -70,8 +72,8 @@ static struct alg algs_parse_unknown[] = {
 
 /* unknown algorithms */
 static struct alg algs_generate_unknown[] = {
-	{ NULL, CKK_RSA, 0 },
-	{ NULL, CKK_DSA, 0 },
+	{ NULL, CKK_RSA, 0 }, /* OID_ANSI_SECP256R1 */
+	{ NULL, CKK_DSA, 0 }, /* OID_ANSI_SECP384R1 */
 	{ NULL, CKK_ECDSA, 0 }, /* missing curve */
 
 	/* terminator */
@@ -79,9 +81,9 @@ static struct alg algs_generate_unknown[] = {
 };
 
 static struct alg curves[] = {
-	{ "ecdsa-sha2-nistp256", CKK_EC, 0 },
-	{ "ecdsa-sha2-nistp384", CKK_EC, 0 },
-	{ "ecdsa-sha2-nistp521", CKK_EC, 0 },
+	{ "ecdsa-sha2-nistp256", CKK_EC, 0 }, /* OID_ANSI_SECP256R1 */
+	{ "ecdsa-sha2-nistp384", CKK_EC, 0 }, /* OID_ANSI_SECP384R1 */
+	{ "ecdsa-sha2-nistp521", CKK_EC, 0 }, /* OID_ANSI_SECP521R1 */
 
 	/* terminator */
 	{ NULL, 0, 0 }
@@ -97,12 +99,11 @@ typedef struct {
 static void
 setup (Test *test, gconstpointer unused)
 {
-	
 	gkd_ssh_agent_proto_init_quarks ();
 
 	algs_known[2].oid = OID_ANSI_SECP256R1;
-        algs_known[3].oid = OID_ANSI_SECP384R1;
-        algs_known[4].oid = OID_ANSI_SECP521R1;
+	algs_known[3].oid = OID_ANSI_SECP384R1;
+	algs_known[4].oid = OID_ANSI_SECP521R1;
 	test->algs_known = algs_known;
 	test->algs_parse_unknown = algs_parse_unknown;
 

@@ -268,6 +268,7 @@ gkm_sexp_extract_mpi (gcry_sexp_t sexp, gcry_mpi_t *mpi, ...)
 	return (*mpi) ? TRUE : FALSE;
 }
 
+/* ECDSA s-exp lists the curve name as a string */
 gboolean
 gkm_sexp_extract_string (gcry_sexp_t sexp, gchar **buf, ...)
 {

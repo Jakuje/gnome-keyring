@@ -101,6 +101,12 @@ void                  gkd_ssh_agent_checkin_main_session            (GckSession*
  * gkd-ssh-agent-proto.c
  */
 
+void                  gkd_ssh_agent_proto_init_quarks               (void);
+
+extern GQuark OID_ANSI_SECP256R1;
+extern GQuark OID_ANSI_SECP384R1;
+extern GQuark OID_ANSI_SECP521R1;
+
 gulong                gkd_ssh_agent_proto_keytype_to_algo           (const gchar *salgo);
 
 const gchar*          gkd_ssh_agent_proto_algo_to_keytype           (gulong algo,
@@ -110,7 +116,7 @@ GQuark                gkd_ssh_agent_proto_keytype_to_oid            (const gchar
 
 const gchar*          gkd_ssh_agent_proto_oid_to_keytype            (GQuark oid);
 
-GQuark                gkd_ssh_agent_proto_get_ecc_oid               (GckAttributes *attrs);
+GQuark                gkd_ssh_agent_proto_oid_from_params           (GckAttributes *attrs);
 
 gboolean              gkd_ssh_agent_proto_read_mpi                  (EggBuffer *req,
                                                                      gsize *offset,
@@ -211,11 +217,5 @@ gboolean              gkd_ssh_agent_proto_write_signature_dsa       (EggBuffer *
 gboolean              gkd_ssh_agent_proto_write_signature_ecdsa     (EggBuffer *resp,
                                                                      CK_BYTE_PTR signature,
                                                                      CK_ULONG n_signature);
-
-void                  gkd_ssh_agent_proto_init_quarks               (void);
-
-extern GQuark OID_ANSI_SECP256R1;
-extern GQuark OID_ANSI_SECP384R1;
-extern GQuark OID_ANSI_SECP521R1;
 
 #endif /*GKDSSHPRIVATE_H_*/

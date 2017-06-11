@@ -1015,6 +1015,8 @@ op_sign_request (GkdSshAgentCall *call)
 
 	offset = 5;
 
+	gkd_ssh_agent_proto_init_quarks ();
+
 	/* The key packet size */
 	if (!egg_buffer_get_uint32 (call->req, offset, &offset, &sz))
 		return FALSE;
@@ -1034,7 +1036,7 @@ op_sign_request (GkdSshAgentCall *call)
 		mech = CKM_DSA;
 	else if (algo == CKK_EC) {
 		mech = CKM_ECDSA;
-		oid = gkd_ssh_agent_proto_get_ecc_oid (attrs);
+		oid = gkd_ssh_agent_proto_oid_from_params (attrs);
 		if (!oid)
 			return FALSE;
 	} else

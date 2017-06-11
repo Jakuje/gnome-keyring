@@ -99,7 +99,7 @@ gkm_data_der_curve_to_oid (gchar *curve)
 
 
 GQuark
-gkm_data_der_get_ecc_oid (GBytes *params)
+gkm_data_der_oid_from_params (GBytes *params)
 {
 	GNode *asn;
 	GQuark oid;

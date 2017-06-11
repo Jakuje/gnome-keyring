@@ -30,8 +30,6 @@
 
 #include "egg/egg-asn1x.h"
 
-#include "pkcs11.h"
-
 /* -----------------------------------------------------------------------------
  * PRIVATE KEYS
  */
@@ -50,7 +48,7 @@ const gchar *      gkm_data_der_oid_to_curve                 (GQuark oid);
 
 GQuark             gkm_data_der_curve_to_oid                 (gchar *curve);
 
-GQuark             gkm_data_der_get_ecc_oid                  (GBytes *params);
+GQuark             gkm_data_der_oid_from_params              (GBytes *params);
 
 GBytes *           gkm_data_der_get_ec_params                (GQuark oid);
 

@@ -137,10 +137,4 @@ typedef CK_G_APPLICATION* CK_G_APPLICATION_PTR;
 
 #define CKA_G_CREDENTIAL_TEMPLATE                (CKA_GNOME + 205)
 
-/* -------------------------------------------------------------------
- * ECC
- */
-
-#define CKA_G_CURVE_NAME                         (CKA_GNOME + 250)
-
 #endif /* PKCS11I_H */

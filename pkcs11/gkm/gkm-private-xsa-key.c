@@ -21,7 +21,6 @@
 #include "config.h"
 
 #include "pkcs11/pkcs11.h"
-#include "pkcs11/pkcs11i.h"
 
 #include "gkm-attributes.h"
 #include "gkm-credential.h"
@@ -59,7 +58,7 @@ gkm_attributes_find_ecc_oid (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs, GQuark *v
 
 	bytes = g_bytes_new (attr->pValue, attr->ulValueLen);
 
-	oid = gkm_data_der_get_ecc_oid (bytes);
+	oid = gkm_data_der_oid_from_params (bytes);
 
 	g_bytes_unref (bytes);
 
@@ -201,7 +200,7 @@ create_ecdsa_private (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs, gcry_sexp_t *ske
 		goto done;
 	}
 
-	gkm_attributes_consume (attrs, n_attrs, CKA_G_CURVE_NAME,
+	gkm_attributes_consume (attrs, n_attrs, CKA_EC_PARAMS,
 	                        CKA_EC_POINT, CKA_VALUE, G_MAXULONG);
 	ret = CKR_OK;
 

@@ -23,7 +23,6 @@ typedef struct _ParsePrivate {
  * INTERNAL
  */
 
-/* XXX Share the code with daemon/ssh-agent/gkd-ssh-agent-proto.c ??? */
 static int
 keytype_to_algo (const gchar *salgo)
 {
