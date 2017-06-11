@@ -26,6 +26,9 @@
 
 #include <gck/gck.h>
 
+#include "pkcs11/pkcs11.h"
+#include "pkcs11/pkcs11i.h"
+
 #include "egg/egg-error.h"
 #include "egg/egg-secure-memory.h"
 
@@ -112,7 +115,6 @@ build_like_attributes (GckAttributes *attrs, CK_OBJECT_CLASS klass)
 	case CKK_EC:
 		copy_attribute (attrs, CKA_EC_PARAMS, &builder);
 		copy_attribute (attrs, CKA_EC_POINT, &builder);
-		copy_attribute (attrs, CKA_G_CURVE_NAME, &builder);
 		break;
 
 	default:
@@ -998,7 +1000,6 @@ op_sign_request (GkdSshAgentCall *call)
 	GckObject *key = NULL;
 	const guchar *data;
 	const gchar *salgo;
-	gchar *ec_curve = NULL;
 	GckSession *session;
 	guchar *result;
 	gsize n_data, n_result;
@@ -1010,6 +1011,7 @@ op_sign_request (GkdSshAgentCall *call)
 	gulong algo, mech;
 	GChecksumType halgo;
 	gsize n_hash = 0;
+	GQuark oid = 0;
 
 	offset = 5;
 
@@ -1032,7 +1034,8 @@ op_sign_request (GkdSshAgentCall *call)
 		mech = CKM_DSA;
 	else if (algo == CKK_EC) {
 		mech = CKM_ECDSA;
-		if (!gck_attributes_find_string (attrs, CKA_G_CURVE_NAME, &ec_curve))
+		oid = gkd_ssh_agent_proto_get_ecc_oid (attrs);
+		if (!oid)
 			return FALSE;
 	} else
 		g_return_val_if_reached (FALSE);
@@ -1088,7 +1091,7 @@ op_sign_request (GkdSshAgentCall *call)
 	blobpos = call->resp->len;
 	egg_buffer_add_uint32 (call->resp, 0);
 
-	salgo = gkd_ssh_agent_proto_algo_to_keytype (algo, ec_curve);
+	salgo = gkd_ssh_agent_proto_algo_to_keytype (algo, oid);
 	g_assert (salgo);
 	egg_buffer_add_string (call->resp, salgo);
 

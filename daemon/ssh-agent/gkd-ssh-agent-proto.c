@@ -24,6 +24,8 @@
 
 #include "gkd-ssh-agent-private.h"
 
+#include "gkm/gkm-data-der.h"
+
 #include "egg/egg-buffer.h"
 
 #include <gck/gck.h>
@@ -31,6 +33,34 @@
 #include <glib.h>
 
 #include <string.h>
+
+/* -----------------------------------------------------------------------------
+ * QUARKS
+ */
+
+GQuark OID_ANSI_SECP256R1;
+GQuark OID_ANSI_SECP384R1;
+GQuark OID_ANSI_SECP521R1;
+
+void
+gkd_ssh_agent_proto_init_quarks (void)
+{
+	static volatile gsize quarks_inited = 0;
+
+	if (g_once_init_enter (&quarks_inited)) {
+
+		#define QUARK(name, value) \
+			name = g_quark_from_static_string(value)
+
+		QUARK (OID_ANSI_SECP256R1, "1.2.840.10045.3.1.7");
+		QUARK (OID_ANSI_SECP384R1, "1.3.132.0.34");
+		QUARK (OID_ANSI_SECP521R1, "1.3.132.0.35");
+
+		#undef QUARK
+
+		g_once_init_leave (&quarks_inited, 1);
+	}
+}
 
 gulong
 gkd_ssh_agent_proto_keytype_to_algo (const gchar *salgo)
@@ -47,42 +77,65 @@ gkd_ssh_agent_proto_keytype_to_algo (const gchar *salgo)
 	return G_MAXULONG;
 }
 
-const gchar*
-gkd_ssh_agent_proto_keytype_to_curve (const gchar *salgo)
+GQuark
+gkd_ssh_agent_proto_keytype_to_oid (const gchar *salgo)
 {
-	g_return_val_if_fail (salgo, NULL);
+	g_return_val_if_fail (salgo, 0);
 	if (strcmp (salgo, "ecdsa-sha2-nistp256") == 0)
-		return "NIST P-256";
+		return OID_ANSI_SECP256R1;
 	if (strcmp (salgo, "ecdsa-sha2-nistp384") == 0)
-		return "NIST P-384";
+		return OID_ANSI_SECP384R1;
 	if (strcmp (salgo, "ecdsa-sha2-nistp521") == 0)
-		return "NIST P-521";
-	return NULL;
+		return OID_ANSI_SECP521R1;
+	return 0;
 }
 
 const gchar*
-gkd_ssh_agent_proto_curve_to_keytype (const gchar *ec_curve)
+gkd_ssh_agent_proto_oid_to_keytype (GQuark oid)
 {
-	g_return_val_if_fail (ec_curve, NULL);
-	if (strcmp (ec_curve, "NIST P-256") == 0)
+	g_return_val_if_fail (oid, 0);
+	if (oid == OID_ANSI_SECP256R1)
 		return "ecdsa-sha2-nistp256";
-	else if (strcmp (ec_curve, "NIST P-384") == 0)
+	else if (oid == OID_ANSI_SECP384R1)
 		return "ecdsa-sha2-nistp384";
-	else if (strcmp (ec_curve, "NIST P-521") == 0)
+	else if (oid == OID_ANSI_SECP521R1)
 		return "ecdsa-sha2-nistp521";
 	return NULL;
 }
 
 const gchar*
-gkd_ssh_agent_proto_algo_to_keytype (gulong algo, const gchar *ec_curve)
+gkd_ssh_agent_proto_algo_to_keytype (gulong algo, GQuark oid)
 {
-	if (algo == CKK_RSA && ec_curve == NULL)
+	if (algo == CKK_RSA && oid == 0)
 		return "ssh-rsa";
-	else if (algo == CKK_DSA && ec_curve == NULL)
+	else if (algo == CKK_DSA && oid == 0)
 		return "ssh-dss";
 	else if (algo == CKK_EC)
-		return gkd_ssh_agent_proto_curve_to_keytype (ec_curve);
+		return gkd_ssh_agent_proto_oid_to_keytype (oid);
 	return NULL;
+}
+
+
+GQuark
+gkd_ssh_agent_proto_get_ecc_oid (GckAttributes *attrs)
+{
+	GBytes *bytes;
+	const GckAttribute *attr;
+	GQuark oid;
+
+	g_assert (attrs);
+
+	attr = gck_attributes_find (attrs, CKA_EC_PARAMS);
+	if (attr == NULL)
+		g_return_val_if_reached (0);
+
+	bytes = g_bytes_new (attr->value, attr->length);
+
+	oid = gkm_data_der_get_ecc_oid (bytes);
+
+	g_bytes_unref (bytes);
+
+	return oid;
 }
 
 gboolean
@@ -464,6 +517,40 @@ gkd_ssh_agent_proto_read_public_dsa (EggBuffer *req,
 }
 
 gboolean
+gkd_ssh_agent_proto_read_ecdsa_curve (EggBuffer *req,
+                                     gsize *offset,
+                                     GckBuilder *attrs)
+{
+	GBytes *params;
+	gchar *curve_name;
+	const guchar *params_data;
+	GQuark oid;
+	gsize params_len;
+
+	g_assert (req);
+	g_assert (offset);
+	g_assert (attrs);
+
+	/* first part is the same as a key_type (ecdsa-sha2-nistp*) and needs
+	 * to be converted to CKA_EC_PARAMS
+	 */
+	if (!egg_buffer_get_string (req, *offset, offset, &curve_name,
+                                    (EggBufferAllocator)g_realloc))
+		return FALSE;
+
+	oid = gkd_ssh_agent_proto_keytype_to_oid (curve_name);
+	g_return_val_if_fail (oid, FALSE);
+
+	params = gkm_data_der_get_ec_params (oid);
+	g_return_val_if_fail (params != NULL, FALSE);
+
+	params_data = g_bytes_get_data (params, &params_len);
+	gck_builder_add_data (attrs, CKA_EC_PARAMS, params_data, params_len);
+
+	return TRUE;
+}
+
+gboolean
 gkd_ssh_agent_proto_read_pair_ecdsa (EggBuffer *req,
                                      gsize *offset,
                                      GckBuilder *priv_attrs,
@@ -476,22 +563,22 @@ gkd_ssh_agent_proto_read_pair_ecdsa (EggBuffer *req,
 	g_assert (priv_attrs);
 	g_assert (pub_attrs);
 
-	if (!gkd_ssh_agent_proto_read_string (req, offset, priv_attrs, CKA_G_CURVE_NAME) ||
+	gkd_ssh_agent_proto_init_quarks();
+
+	if (!gkd_ssh_agent_proto_read_ecdsa_curve (req, offset, priv_attrs) ||
 	    !gkd_ssh_agent_proto_read_string (req, offset, priv_attrs, CKA_EC_POINT) ||
 	    !gkd_ssh_agent_proto_read_mpi (req, offset, priv_attrs, CKA_VALUE))
 		return FALSE;
 
 	/* Copy attributes to the public key */
-	attr = gck_builder_find (priv_attrs, CKA_G_CURVE_NAME);
-	gck_builder_add_attribute (pub_attrs, attr);
 	attr = gck_builder_find (priv_attrs, CKA_EC_POINT);
+	gck_builder_add_attribute (pub_attrs, attr);
+	attr = gck_builder_find (priv_attrs, CKA_EC_PARAMS);
 	gck_builder_add_attribute (pub_attrs, attr);
 
 	/* Add in your basic other required attributes */
-	gck_builder_add_string (priv_attrs, CKA_EC_PARAMS, "XXX"); // XXX 
 	gck_builder_add_ulong (priv_attrs, CKA_CLASS, CKO_PRIVATE_KEY);
 	gck_builder_add_ulong (priv_attrs, CKA_KEY_TYPE, CKK_EC);
-	gck_builder_add_string (pub_attrs, CKA_EC_PARAMS, "XXX"); // XXX 
 	gck_builder_add_ulong (pub_attrs, CKA_CLASS, CKO_PUBLIC_KEY);
 	gck_builder_add_ulong (pub_attrs, CKA_KEY_TYPE, CKK_EC);
 
@@ -507,12 +594,11 @@ gkd_ssh_agent_proto_read_public_ecdsa (EggBuffer *req,
 	g_assert (offset);
 	g_assert (attrs);
 
-	if (!gkd_ssh_agent_proto_read_string (req, offset, attrs, CKA_G_CURVE_NAME) ||
+	if (!gkd_ssh_agent_proto_read_ecdsa_curve (req, offset, attrs) ||
 	    !gkd_ssh_agent_proto_read_string (req, offset, attrs, CKA_EC_POINT))
 		return FALSE;
 
 	/* Add in your basic other required attributes */
-	gck_builder_add_string (attrs, CKA_EC_PARAMS, "XXX"); // XXX 
 	gck_builder_add_ulong (attrs, CKA_CLASS, CKO_PUBLIC_KEY);
 	gck_builder_add_ulong (attrs, CKA_KEY_TYPE, CKK_EC);
 
@@ -524,19 +610,23 @@ gkd_ssh_agent_proto_write_public (EggBuffer *resp, GckAttributes *attrs)
 {
 	gboolean ret = FALSE;
 	const gchar *salgo;
-	gchar *ec_curve = NULL;
+	GQuark oid = 0;
 	gulong algo;
 
 	g_assert (resp);
 	g_assert (attrs);
 
+	gkd_ssh_agent_proto_init_quarks ();
+
 	if (!gck_attributes_find_ulong (attrs, CKA_KEY_TYPE, &algo))
 		g_return_val_if_reached (FALSE);
-	if (algo == CKK_EC)
-		if (!gck_attributes_find_string (attrs, CKA_G_CURVE_NAME, &ec_curve))
-			g_return_val_if_reached (FALSE);
+	if (algo == CKK_EC) {
+		oid = gkd_ssh_agent_proto_get_ecc_oid (attrs);
+		if (!oid)
+			return FALSE;
+	}
 
-	salgo = gkd_ssh_agent_proto_algo_to_keytype (algo, ec_curve);
+	salgo = gkd_ssh_agent_proto_algo_to_keytype (algo, oid);
 	g_assert (salgo);
 	egg_buffer_add_string (resp, salgo);
 
@@ -623,15 +713,24 @@ gboolean
 gkd_ssh_agent_proto_write_public_ecdsa (EggBuffer *resp, GckAttributes *attrs)
 {
 	const GckAttribute *attr;
+	GQuark oid;
+	const gchar *key_type;
+	guchar *data;
 
 	g_assert (resp);
 	g_assert (attrs);
 
-	attr = gck_attributes_find (attrs, CKA_G_CURVE_NAME);
-	g_return_val_if_fail (attr, FALSE);
+	oid = gkd_ssh_agent_proto_get_ecc_oid (attrs);
+	g_return_val_if_fail (oid, FALSE);
 
-	if (!gkd_ssh_agent_proto_write_string (resp, attr))
-		return FALSE;
+	key_type = gkd_ssh_agent_proto_oid_to_keytype (oid);
+	g_return_val_if_fail (key_type != NULL, FALSE);
+
+       data = egg_buffer_add_byte_array_empty (resp, strlen(key_type));
+       if (data == NULL)
+               return FALSE;
+
+       memcpy (data, key_type, strlen(key_type));
 
 	attr = gck_attributes_find (attrs, CKA_EC_POINT);
 	g_return_val_if_fail (attr, FALSE);

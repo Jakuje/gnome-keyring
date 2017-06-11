@@ -28,6 +28,7 @@
 #include "gkm-debug.h"
 #include "gkm-factory.h"
 #include "gkm-public-xsa-key.h"
+#include "gkm-data-der.h"
 #include "gkm-session.h"
 #include "gkm-sexp.h"
 #include "gkm-transaction.h"
@@ -145,12 +146,20 @@ static CK_RV
 create_ecdsa_public (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs, gcry_sexp_t *skey)
 {
 	gcry_error_t gcry;
-	gchar *curve_name = NULL, *q = NULL;
+	const gchar *curve_name;
+	gchar *q = NULL;
+	GQuark oid;
 	CK_RV ret;
 
-	if (!gkm_attributes_find_string (attrs, n_attrs, CKA_G_CURVE_NAME, &curve_name) ||
+	if (!gkm_attributes_find_ecc_oid (attrs, n_attrs, &oid) ||
 	    !gkm_attributes_find_string (attrs, n_attrs, CKA_EC_POINT, &q)) {
 		ret = CKR_TEMPLATE_INCOMPLETE;
+		goto done;
+	}
+
+	curve_name = gkm_data_der_oid_to_curve (oid);
+	if (curve_name != NULL) {
+		ret = CKR_FUNCTION_FAILED;
 		goto done;
 	}
 
@@ -164,13 +173,12 @@ create_ecdsa_public (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs, gcry_sexp_t *skey
 		goto done;
 	}
 
-	gkm_attributes_consume (attrs, n_attrs, CKA_G_CURVE_NAME, CKA_EC_POINT,
+	gkm_attributes_consume (attrs, n_attrs, CKA_EC_POINT,
 	                        G_MAXULONG);
 	ret = CKR_OK;
 
 done:
 	free (q);
-	free (curve_name);
 	return ret;
 }
 

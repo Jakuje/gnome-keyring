@@ -29,6 +29,7 @@
 #include "gkm-debug.h"
 #include "gkm-factory.h"
 #include "gkm-private-xsa-key.h"
+#include "gkm-data-der.h"
 #include "gkm-session.h"
 #include "gkm-transaction.h"
 #include "gkm-util.h"
@@ -42,6 +43,28 @@ G_DEFINE_TYPE (GkmPrivateXsaKey, gkm_private_xsa_key, GKM_TYPE_SEXP_KEY);
 /* -----------------------------------------------------------------------------
  * INTERNAL
  */
+
+gboolean
+gkm_attributes_find_ecc_oid (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs, GQuark *value)
+{
+	GBytes *bytes;
+	CK_ATTRIBUTE_PTR attr;
+	GQuark oid;
+
+	g_return_val_if_fail (attrs || !n_attrs, FALSE);
+
+	attr = gkm_attributes_find (attrs, n_attrs, CKA_EC_PARAMS);
+	if (attr == NULL)
+		return FALSE;
+
+	bytes = g_bytes_new (attr->pValue, attr->ulValueLen);
+
+	oid = gkm_data_der_get_ecc_oid (bytes);
+
+	g_bytes_unref (bytes);
+
+	return oid;
+}
 
 
 static CK_RV
@@ -150,13 +173,21 @@ create_ecdsa_private (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs, gcry_sexp_t *ske
 {
 	gcry_error_t gcry;
 	gcry_mpi_t d = NULL;
-	gchar *curve_name = NULL, *q = NULL;
+	const gchar *curve_name;
+	gchar *q = NULL;
+	GQuark oid;
 	CK_RV ret;
 
-	if (!gkm_attributes_find_string (attrs, n_attrs, CKA_G_CURVE_NAME, &curve_name) ||
+	if (!gkm_attributes_find_ecc_oid (attrs, n_attrs, &oid) ||
 	    !gkm_attributes_find_string (attrs, n_attrs, CKA_EC_POINT, &q) ||
 	    !gkm_attributes_find_mpi (attrs, n_attrs, CKA_VALUE, &d)) {
 		ret = CKR_TEMPLATE_INCOMPLETE;
+		goto done;
+	}
+
+	curve_name = gkm_data_der_oid_to_curve (oid);
+	if (curve_name != NULL) {
+		ret = CKR_FUNCTION_FAILED;
 		goto done;
 	}
 
@@ -175,7 +206,6 @@ create_ecdsa_private (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs, gcry_sexp_t *ske
 	ret = CKR_OK;
 
 done:
-	free (curve_name);
 	free (q);
 	gcry_mpi_release (d);
 	return ret;

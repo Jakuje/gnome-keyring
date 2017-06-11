@@ -35,57 +35,56 @@
 struct alg {
 	gchar		*name;
 	CK_KEY_TYPE	 id;
-	gchar		*ec_curve;
+	GQuark		 oid;
 };
 
 /* known algorithms */
-static const struct alg algs_known[] = {
-	{ "ssh-rsa", CKK_RSA, NULL },
-	{ "ssh-dss", CKK_DSA, NULL },
-	{ "ecdsa-sha2-nistp256", CKK_EC, "NIST P-256" },
-	{ "ecdsa-sha2-nistp384", CKK_EC, "NIST P-384" },
-	{ "ecdsa-sha2-nistp521", CKK_EC, "NIST P-521" },
+static struct alg algs_known[] = {
+	{ "ssh-rsa", CKK_RSA, 0 },
+	{ "ssh-dss", CKK_DSA, 0 },
+	{ "ecdsa-sha2-nistp256", CKK_EC, 0 },
+	{ "ecdsa-sha2-nistp384", CKK_EC, 0 },
+	{ "ecdsa-sha2-nistp521", CKK_EC, 0 },
 
 	/* terminator */
-	{ NULL, 0, NULL }
+	{ NULL, 0, 0 }
 };
 
 /* unknown algorithms */
-static const struct alg algs_parse_unknown[] = {
+static struct alg algs_parse_unknown[] = {
 	/* no certificates */
-	{ "ssh-rsa-cert-v01@openssh.com", G_MAXULONG, NULL },
-	{ "ssh-dss-cert-v01@openssh.com", G_MAXULONG, NULL },
-	{ "ecdsa-sha2-nistp256-cert-v01@openssh.com", G_MAXULONG, NULL },
-	{ "ecdsa-sha2-nistp384-cert-v01@openssh.com", G_MAXULONG, NULL },
-	{ "ecdsa-sha2-nistp521-cert-v01@openssh.com", G_MAXULONG, NULL },
+	{ "ssh-rsa-cert-v01@openssh.com", G_MAXULONG, 0 },
+	{ "ssh-dss-cert-v01@openssh.com", G_MAXULONG, 0 },
+	{ "ecdsa-sha2-nistp256-cert-v01@openssh.com", G_MAXULONG, 0 },
+	{ "ecdsa-sha2-nistp384-cert-v01@openssh.com", G_MAXULONG, 0 },
+	{ "ecdsa-sha2-nistp521-cert-v01@openssh.com", G_MAXULONG, 0 },
 	/* no new signatures/algorithms */
-	{ "rsa-sha2-256", G_MAXULONG, NULL },
-	{ "rsa-sha2-512", G_MAXULONG, NULL },
-	{ "ssh-ed25519", G_MAXULONG, NULL },
-	{ "ssh-ed25519-cert-v01@openssh.com", G_MAXULONG, NULL },
+	{ "rsa-sha2-256", G_MAXULONG, 0 },
+	{ "rsa-sha2-512", G_MAXULONG, 0 },
+	{ "ssh-ed25519", G_MAXULONG, 0 },
+	{ "ssh-ed25519-cert-v01@openssh.com", G_MAXULONG, 0 },
 
 	/* terminator */
-	{ NULL, 0, NULL }
+	{ NULL, 0, 0 }
 };
 
 /* unknown algorithms */
-static const struct alg algs_generate_unknown[] = {
-	{ NULL, CKK_RSA, "NIST P-256" },
-	{ NULL, CKK_DSA, "NIST P-384" },
-	{ NULL, CKK_ECDSA, "NIST P-512" }, /* 512 is not a valid size! */
-	{ NULL, CKK_ECDSA, "" }, /* missing curve */
+static struct alg algs_generate_unknown[] = {
+	{ NULL, CKK_RSA, 0 },
+	{ NULL, CKK_DSA, 0 },
+	{ NULL, CKK_ECDSA, 0 }, /* missing curve */
 
 	/* terminator */
-	{ NULL, 0, NULL }
+	{ NULL, 0, 0 }
 };
 
-static const struct alg curves[] = {
-	{ "ecdsa-sha2-nistp256", CKK_EC, "NIST P-256" },
-	{ "ecdsa-sha2-nistp384", CKK_EC, "NIST P-384" },
-	{ "ecdsa-sha2-nistp521", CKK_EC, "NIST P-521" },
+static struct alg curves[] = {
+	{ "ecdsa-sha2-nistp256", CKK_EC, 0 },
+	{ "ecdsa-sha2-nistp384", CKK_EC, 0 },
+	{ "ecdsa-sha2-nistp521", CKK_EC, 0 },
 
 	/* terminator */
-	{ NULL, 0, NULL }
+	{ NULL, 0, 0 }
 };
 
 typedef struct {
@@ -98,9 +97,21 @@ typedef struct {
 static void
 setup (Test *test, gconstpointer unused)
 {
+	
+	gkd_ssh_agent_proto_init_quarks ();
+
+	algs_known[2].oid = OID_ANSI_SECP256R1;
+        algs_known[3].oid = OID_ANSI_SECP384R1;
+        algs_known[4].oid = OID_ANSI_SECP521R1;
 	test->algs_known = algs_known;
 	test->algs_parse_unknown = algs_parse_unknown;
+
+	algs_generate_unknown[0].oid = OID_ANSI_SECP256R1;
+	algs_generate_unknown[1].oid = OID_ANSI_SECP384R1;
 	test->algs_generate_unknown = algs_generate_unknown;
+	curves[0].oid = OID_ANSI_SECP256R1;
+	curves[1].oid = OID_ANSI_SECP384R1;
+	curves[2].oid = OID_ANSI_SECP521R1;
 	test->curves = curves;
 }
 
@@ -140,13 +151,13 @@ test_generate (Test *test, gconstpointer unused)
 
 	/* known */
 	for (a = test->algs_known; a->name != NULL; a++) {
-		alg_name = gkd_ssh_agent_proto_algo_to_keytype(a->id, a->ec_curve);
+		alg_name = gkd_ssh_agent_proto_algo_to_keytype(a->id, a->oid);
 		g_assert (strcmp(a->name, alg_name) == 0);
 	}
 
 	/* we do not recognize nor fail with the unknown */
-	for (a = test->algs_generate_unknown; a->ec_curve != NULL; a++) {
-		alg_name = gkd_ssh_agent_proto_algo_to_keytype(a->id, a->ec_curve);
+	for (a = test->algs_generate_unknown; a->oid != 0; a++) {
+		alg_name = gkd_ssh_agent_proto_algo_to_keytype(a->id, a->oid);
 		g_assert (alg_name == NULL); /* NULL return */
 	}
 }
@@ -159,11 +170,11 @@ test_curve_from_ssh (Test *test, gconstpointer unused)
 
 	/* known */
 	for (a = test->curves; a->name != NULL; a++) {
-		alg_name = gkd_ssh_agent_proto_curve_to_keytype(a->ec_curve);
+		alg_name = gkd_ssh_agent_proto_oid_to_keytype(a->oid);
 		g_assert (strcmp(a->name, alg_name) == 0);
 	}
 
-	alg_name = gkd_ssh_agent_proto_curve_to_keytype("NIST P-unknown");
+	alg_name = gkd_ssh_agent_proto_oid_to_keytype(65000);
 	g_assert (alg_name == NULL);
 }
 
@@ -171,16 +182,16 @@ static void
 test_ssh_from_curve (Test *test, gconstpointer unused)
 {
 	const struct alg *a;
-	const gchar *curve_name;
+	GQuark oid;
 
 	/* known */
 	for (a = test->curves; a->name != NULL; a++) {
-		curve_name = gkd_ssh_agent_proto_keytype_to_curve(a->name);
-		g_assert (strcmp(a->ec_curve, curve_name) == 0);
+		oid = gkd_ssh_agent_proto_keytype_to_oid(a->name);
+		g_assert (a->oid ==oid);
 	}
 
-	curve_name = gkd_ssh_agent_proto_keytype_to_curve("ecdsa-sha2-nistpunknown");
-	g_assert (curve_name == NULL);
+	oid = gkd_ssh_agent_proto_keytype_to_oid("ecdsa-sha2-nistpunknown");
+	g_assert (oid == 0);
 }
 
 int

@@ -88,7 +88,6 @@ gkm_data_der_oid_to_curve (GQuark oid)
 GQuark
 gkm_data_der_curve_to_oid (gchar *curve)
 {
-	/* use g_quark_try_string () ??? */
 	if (strcmp(curve, "NIST P-256") == 0)
 		return OID_ANSI_SECP256R1;
 	else if (strcmp(curve, "NIST P-384") == 0)
@@ -96,6 +95,47 @@ gkm_data_der_curve_to_oid (gchar *curve)
 	else if (strcmp(curve, "NIST P-521") == 0)
 		return OID_ANSI_SECP521R1;
 	return -1;
+}
+
+
+GQuark
+gkm_data_der_get_ecc_oid (GBytes *params)
+{
+	GNode *asn;
+	GQuark oid;
+
+	asn = egg_asn1x_create_and_decode (pk_asn1_tab, "Parameters", params);
+	if (!asn)
+		goto done;
+
+	oid = egg_asn1x_get_oid_as_quark (egg_asn1x_node (asn, "namedCurve", NULL));
+	if (!oid)
+		goto done;
+
+done:
+	egg_asn1x_destroy (asn);
+	return oid;
+}
+
+GBytes *
+gkm_data_der_get_ec_params (GQuark oid)
+{
+	GNode *asn;
+	GBytes *params = NULL;
+
+	asn = egg_asn1x_create (pk_asn1_tab, "Parameters");
+	if (!asn)
+		goto done;
+
+	oid = egg_asn1x_set_oid_as_quark (egg_asn1x_node (asn, "namedCurve", NULL), oid);
+	if (!oid)
+		goto done;
+
+	params = egg_asn1x_encode (asn, NULL);
+
+done:
+	egg_asn1x_destroy (asn);
+	return params;
 }
 
 /* -----------------------------------------------------------------------------

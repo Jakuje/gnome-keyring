@@ -21,6 +21,7 @@
 #include "config.h"
 
 #include "gkm-attributes.h"
+#include "gkm-data-der.h"
 #include "gkm-util.h"
 
 #include "egg/egg-timegm.h"

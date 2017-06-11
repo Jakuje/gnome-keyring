@@ -26,7 +26,6 @@
 #include "egg/egg-buffer.h"
 
 #include "pkcs11/pkcs11.h"
-#include "pkcs11/pkcs11i.h"
 
 #include <gck/gck.h>
 
@@ -105,11 +104,13 @@ void                  gkd_ssh_agent_checkin_main_session            (GckSession*
 gulong                gkd_ssh_agent_proto_keytype_to_algo           (const gchar *salgo);
 
 const gchar*          gkd_ssh_agent_proto_algo_to_keytype           (gulong algo,
-                                                                     const gchar *ec_curve);
+                                                                     GQuark oid);
 
-const gchar*          gkd_ssh_agent_proto_keytype_to_curve          (const gchar *salgo);
+GQuark                gkd_ssh_agent_proto_keytype_to_oid            (const gchar *salgo);
 
-const gchar*          gkd_ssh_agent_proto_curve_to_keytype          (const gchar *ec_curve);
+const gchar*          gkd_ssh_agent_proto_oid_to_keytype            (GQuark oid);
+
+GQuark                gkd_ssh_agent_proto_get_ecc_oid               (GckAttributes *attrs);
 
 gboolean              gkd_ssh_agent_proto_read_mpi                  (EggBuffer *req,
                                                                      gsize *offset,
@@ -129,6 +130,10 @@ gboolean              gkd_ssh_agent_proto_read_string               (EggBuffer *
                                                                      gsize *offset,
                                                                      GckBuilder *attrs,
                                                                      CK_ATTRIBUTE_TYPE type);
+
+gboolean              gkd_ssh_agent_proto_read_ecdsa_curve          (EggBuffer *req,
+                                                                     gsize *offset,
+                                                                     GckBuilder *attrs);
 
 gboolean              gkd_ssh_agent_proto_write_mpi                 (EggBuffer *resp,
                                                                      const GckAttribute *attr);
@@ -206,5 +211,11 @@ gboolean              gkd_ssh_agent_proto_write_signature_dsa       (EggBuffer *
 gboolean              gkd_ssh_agent_proto_write_signature_ecdsa     (EggBuffer *resp,
                                                                      CK_BYTE_PTR signature,
                                                                      CK_ULONG n_signature);
+
+void                  gkd_ssh_agent_proto_init_quarks               (void);
+
+extern GQuark OID_ANSI_SECP256R1;
+extern GQuark OID_ANSI_SECP384R1;
+extern GQuark OID_ANSI_SECP521R1;
 
 #endif /*GKDSSHPRIVATE_H_*/

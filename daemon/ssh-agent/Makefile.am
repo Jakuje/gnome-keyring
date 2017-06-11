@@ -28,6 +28,7 @@ gkd_ssh_agent_standalone_LDADD = \
 	libgkd-ssh-agent.la \
 	libegg-buffer.la \
 	libegg-secure.la \
+	libgkm.la \
 	$(DAEMON_LIBS)
 
 # ------------------------------------------------------------------------------
@@ -38,6 +39,7 @@ ssh_agent_CFLAGS = \
 
 ssh_agent_LIBS = \
 	libgkd-ssh-agent.la \
+	libgkm.la \
 	libegg.la \
 	$(GLIB_LIBS) \
 	$(GCK_LIBS)

@@ -30,6 +30,8 @@
 
 #include "egg/egg-asn1x.h"
 
+#include "pkcs11.h"
+
 /* -----------------------------------------------------------------------------
  * PRIVATE KEYS
  */
@@ -47,6 +49,10 @@ GkmDataResult      gkm_data_der_read_private_key_dsa_parts   (GBytes *keydata,
 const gchar *      gkm_data_der_oid_to_curve                 (GQuark oid);
 
 GQuark             gkm_data_der_curve_to_oid                 (gchar *curve);
+
+GQuark             gkm_data_der_get_ecc_oid                  (GBytes *params);
+
+GBytes *           gkm_data_der_get_ec_params                (GQuark oid);
 
 GkmDataResult      gkm_data_der_read_private_key_ecdsa       (GBytes *data,
                                                               gcry_sexp_t *s_key);
