@@ -13,4 +13,16 @@ TestData ::= SEQUENCE {
 	boolean                 BOOLEAN DEFAULT FALSE
 }
 
+TestStringMpi ::= SEQUENCE {
+	mpi                     OCTET STRING
+}
+
+TestBitString ::= SEQUENCE {
+	data                     BIT STRING
+}
+
+TestOid ::= SEQUENCE {
+	oid                     OBJECT IDENTIFIER
+}
+
 END
