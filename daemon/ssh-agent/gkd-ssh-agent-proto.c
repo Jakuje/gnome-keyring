@@ -78,16 +78,29 @@ gkd_ssh_agent_proto_keytype_to_algo (const gchar *salgo)
 }
 
 GQuark
-gkd_ssh_agent_proto_keytype_to_oid (const gchar *salgo)
+gkd_ssh_agent_proto_curve_to_oid (const gchar *salgo)
 {
 	g_return_val_if_fail (salgo, 0);
-	if (strcmp (salgo, "ecdsa-sha2-nistp256") == 0)
+	if (strcmp (salgo, "nistp256") == 0)
 		return OID_ANSI_SECP256R1;
-	if (strcmp (salgo, "ecdsa-sha2-nistp384") == 0)
+	if (strcmp (salgo, "nistp384") == 0)
 		return OID_ANSI_SECP384R1;
-	if (strcmp (salgo, "ecdsa-sha2-nistp521") == 0)
+	if (strcmp (salgo, "nistp521") == 0)
 		return OID_ANSI_SECP521R1;
 	return 0;
+}
+
+const gchar*
+gkd_ssh_agent_proto_oid_to_curve (GQuark oid)
+{
+	g_return_val_if_fail (oid, 0);
+	if (oid == OID_ANSI_SECP256R1)
+		return "nistp256";
+	else if (oid == OID_ANSI_SECP384R1)
+		return "nistp384";
+	else if (oid == OID_ANSI_SECP521R1)
+		return "nistp521";
+	return NULL;
 }
 
 const gchar*
@@ -533,14 +546,14 @@ gkd_ssh_agent_proto_read_ecdsa_curve (EggBuffer *req,
 
 	gkd_ssh_agent_proto_init_quarks ();
 
-	/* first part is the same as a key_type (ecdsa-sha2-nistp*) and needs
+	/* first part is the curve name (nistp* part of key name) and needs
 	 * to be converted to CKA_EC_PARAMS
 	 */
 	if (!egg_buffer_get_string (req, *offset, offset, &curve_name,
                                 (EggBufferAllocator)g_realloc))
 		return FALSE;
 
-	oid = gkd_ssh_agent_proto_keytype_to_oid (curve_name);
+	oid = gkd_ssh_agent_proto_curve_to_oid (curve_name);
 	g_return_val_if_fail (oid, FALSE);
 
 	params = gkm_data_der_get_ec_params (oid);
@@ -725,14 +738,14 @@ gkd_ssh_agent_proto_write_public_ecdsa (EggBuffer *resp, GckAttributes *attrs)
 	oid = gkd_ssh_agent_proto_oid_from_params (attrs);
 	g_return_val_if_fail (oid, FALSE);
 
-	key_type = gkd_ssh_agent_proto_oid_to_keytype (oid);
+	key_type = gkd_ssh_agent_proto_oid_to_curve (oid);
 	g_return_val_if_fail (key_type != NULL, FALSE);
 
-       data = egg_buffer_add_byte_array_empty (resp, strlen(key_type));
-       if (data == NULL)
-               return FALSE;
+	data = egg_buffer_add_byte_array_empty (resp, strlen(key_type));
+	if (data == NULL)
+		return FALSE;
 
-       memcpy (data, key_type, strlen(key_type));
+	memcpy (data, key_type, strlen(key_type));
 
 	attr = gck_attributes_find (attrs, CKA_EC_POINT);
 	g_return_val_if_fail (attr, FALSE);

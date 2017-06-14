@@ -112,7 +112,9 @@ gulong                gkd_ssh_agent_proto_keytype_to_algo           (const gchar
 const gchar*          gkd_ssh_agent_proto_algo_to_keytype           (gulong algo,
                                                                      GQuark oid);
 
-GQuark                gkd_ssh_agent_proto_keytype_to_oid            (const gchar *salgo);
+GQuark                gkd_ssh_agent_proto_curve_to_oid              (const gchar *salgo);
+
+const gchar*          gkd_ssh_agent_proto_oid_to_curve              (GQuark oid);
 
 const gchar*          gkd_ssh_agent_proto_oid_to_keytype            (GQuark oid);
 

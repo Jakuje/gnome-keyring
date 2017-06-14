@@ -122,13 +122,18 @@ gkm_data_der_get_ec_params (GQuark oid)
 {
 	GNode *asn;
 	GBytes *params = NULL;
+	GNode *named_curve;
 
 	asn = egg_asn1x_create (pk_asn1_tab, "Parameters");
 	if (!asn)
 		goto done;
 
-	oid = egg_asn1x_set_oid_as_quark (egg_asn1x_node (asn, "namedCurve", NULL), oid);
-	if (!oid)
+	named_curve = egg_asn1x_node (asn, "namedCurve", NULL);
+
+	if (!egg_asn1x_set_oid_as_quark (named_curve, oid))
+		goto done;
+
+	if (!egg_asn1x_set_choice (asn, named_curve))
 		goto done;
 
 	params = egg_asn1x_encode (asn, NULL);
@@ -1143,7 +1148,7 @@ gkm_data_der_write_public_key_ecdsa (gcry_sexp_t s_key)
 	    !gkm_data_asn1_write_oid (named_curve, oid))
 		goto done;
 
-	if (!egg_asn1x_set_choice (egg_asn1x_node(asn, "parameters", NULL), named_curve))
+	if (!egg_asn1x_set_choice (egg_asn1x_node (asn, "parameters", NULL), named_curve))
 		goto done;
 
 	result = egg_asn1x_encode (asn, egg_secure_realloc);
@@ -1195,7 +1200,7 @@ gkm_data_der_write_private_key_ecdsa (gcry_sexp_t s_key)
 	    !gkm_data_asn1_write_oid (named_curve, oid))
 		goto done;
 
-	if (!egg_asn1x_set_choice (egg_asn1x_node(asn, "parameters", NULL), named_curve))
+	if (!egg_asn1x_set_choice (egg_asn1x_node (asn, "parameters", NULL), named_curve))
 		goto done;
 
 	egg_asn1x_set_integer_as_ulong (egg_asn1x_node (asn, "version", NULL), 1);

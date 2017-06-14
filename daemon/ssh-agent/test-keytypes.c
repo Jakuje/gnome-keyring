@@ -183,15 +183,18 @@ static void
 test_ssh_from_curve (Test *test, gconstpointer unused)
 {
 	const struct alg *a;
+	gchar *curve;
 	GQuark oid;
 
 	/* known */
 	for (a = test->curves; a->name != NULL; a++) {
-		oid = gkd_ssh_agent_proto_keytype_to_oid(a->name);
-		g_assert (a->oid ==oid);
+		/* curve is in the end of the keytype -- skip 11 chars */
+		curve = a->name + 11;
+		oid = gkd_ssh_agent_proto_curve_to_oid (curve);
+		g_assert (a->oid == oid);
 	}
 
-	oid = gkd_ssh_agent_proto_keytype_to_oid("ecdsa-sha2-nistpunknown");
+	oid = gkd_ssh_agent_proto_curve_to_oid("nistpunknown");
 	g_assert (oid == 0);
 }
 
