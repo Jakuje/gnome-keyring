@@ -41,7 +41,7 @@ typedef struct _EggAsn1xDef ASN1_ARRAY_TYPE;
 typedef struct _EggAsn1xDef asn1_static_node;
 #include "test.asn.h"
 
-#define TEST_STRING "test data to write and read in the ASN1 structure"
+#define TEST_STRING "test data to write and read in the ASN1 structur"
 
 static GQuark OID_ANSI_SECP256R1;
 
@@ -162,6 +162,7 @@ test_asn1_bit_string (Test *test, gconstpointer unused)
 	GBytes *data;
 	gboolean ret;
 	GBytes *source, *target;
+	gsize target_bits, source_bits;
 
 	asn = egg_asn1x_create (test_asn1_tab, "TestBitString");
 	g_assert ("asn test structure is null" && asn != NULL);
@@ -169,9 +170,11 @@ test_asn1_bit_string (Test *test, gconstpointer unused)
 	/* Create a string */
 	source = g_bytes_new (TEST_STRING, strlen(TEST_STRING));
 	g_return_if_fail (source);
+	source_bits = g_bytes_get_size(source)*8;
 
 	/* Write the string out */
-	ret = gkm_data_asn1_write_bit_string (egg_asn1x_node (asn, "data", NULL), source);
+	ret = gkm_data_asn1_write_bit_string (egg_asn1x_node (asn, "data", NULL),
+                                              source, source_bits);
 	g_assert ("couldn't write string to asn1" && ret);
 
 	/* Now encode the whole caboodle */
@@ -184,11 +187,56 @@ test_asn1_bit_string (Test *test, gconstpointer unused)
 	asn = egg_asn1x_create_and_decode (test_asn1_tab, "TestBitString", data);
 	g_assert (asn != NULL);
 
-	ret = gkm_data_asn1_read_bit_string (egg_asn1x_node (asn, "data", NULL), &target);
+	ret = gkm_data_asn1_read_bit_string (egg_asn1x_node (asn, "data", NULL),
+                                             &target, &target_bits);
 	egg_asn1x_destroy (asn);
 	g_assert ("couldn't read bit string from asn1" && ret);
 	g_assert ("bit string returned is null" && target != NULL);
-	g_assert ("mpi is wrong number" && g_bytes_equal (source, target));
+	g_assert ("Source and target length differ" && target_bits == source_bits);
+	g_assert ("Bit strings differ" && g_bytes_equal (source, target));
+
+	g_bytes_unref (data);
+	g_bytes_unref (source);
+	g_bytes_unref (target);
+}
+/* XXX test some incomplete octets */
+
+static void
+test_asn1_string (Test *test, gconstpointer unused)
+{
+	GNode *asn;
+	GBytes *data;
+	gboolean ret;
+	GBytes *source, *target;
+
+	asn = egg_asn1x_create (test_asn1_tab, "TestString");
+	g_assert ("asn test structure is null" && asn != NULL);
+
+	/* Create a string */
+	source = g_bytes_new (TEST_STRING, strlen(TEST_STRING));
+	g_return_if_fail (source);
+
+	/* Write the string out */
+	ret = gkm_data_asn1_write_string (egg_asn1x_node (asn, "data", NULL),
+                                          source);
+	g_assert ("couldn't write string to asn1" && ret);
+
+	/* Now encode the whole caboodle */
+	data = egg_asn1x_encode (asn, NULL);
+	g_assert ("encoding asn1 didn't work" && data != NULL);
+
+	egg_asn1x_destroy (asn);
+
+	/* Now decode it all nicely */
+	asn = egg_asn1x_create_and_decode (test_asn1_tab, "TestString", data);
+	g_assert (asn != NULL);
+
+	ret = gkm_data_asn1_read_string (egg_asn1x_node (asn, "data", NULL),
+                                         &target);
+	egg_asn1x_destroy (asn);
+	g_assert ("couldn't read string from asn1" && ret);
+	g_assert ("string returned is null" && target != NULL);
+	g_assert ("The strings differ" && g_bytes_equal (source, target));
 
 	g_bytes_unref (data);
 	g_bytes_unref (source);
@@ -246,6 +294,7 @@ main (int argc, char **argv)
 	g_test_add ("/gkm/data-asn1/integers", Test, NULL, setup, test_asn1_integers, teardown);
 	g_test_add ("/gkm/data-asn1/string_mpi", Test, NULL, setup, test_asn1_string_mpi, teardown);
 	g_test_add ("/gkm/data-asn1/bit_string", Test, NULL, setup, test_asn1_bit_string, teardown);
+	g_test_add ("/gkm/data-asn1/string", Test, NULL, setup, test_asn1_string, teardown);
 	g_test_add ("/gkm/data-asn1/oid", Test, NULL, setup, test_asn1_oid, teardown);
 
 	return g_test_run ();

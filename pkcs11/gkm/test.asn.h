@@ -18,6 +18,8 @@ const ASN1_ARRAY_TYPE test_asn1_tab[] = {
   { "mpi", 7, NULL },
   { "TestBitString", 1610612741, NULL },
   { "data", 6, NULL },
+  { "TestString", 1610612741, NULL },
+  { "data", 7, NULL },
   { "TestOid", 536870917, NULL },
   { "oid", 12, NULL },
   { NULL, 0, NULL }

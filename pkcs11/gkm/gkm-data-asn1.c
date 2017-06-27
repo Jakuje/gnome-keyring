@@ -131,9 +131,37 @@ gkm_data_asn1_write_mpi (GNode *asn, gcry_mpi_t mpi)
 	return TRUE;
 }
 
+/* ECDSA CKA_EC_POINT encodes q value as a OCTET STRING */
+gboolean
+gkm_data_asn1_read_string (GNode *asn, GBytes **data)
+{
+	GBytes *buf;
+
+	g_return_val_if_fail (asn, FALSE);
+	g_return_val_if_fail (data, FALSE);
+
+	buf = egg_asn1x_get_string_as_bytes (asn);
+	if (!buf)
+		return FALSE;
+
+	*data = buf;
+	return TRUE;
+}
+
+gboolean
+gkm_data_asn1_write_string (GNode *asn, GBytes *data)
+{
+	g_return_val_if_fail (asn, FALSE);
+	g_return_val_if_fail (data, FALSE);
+
+	egg_asn1x_set_string_as_bytes (asn, data);
+
+	return TRUE;
+}
+
 /* ECDSA public key (q) is encoded as a bit string */
 gboolean
-gkm_data_asn1_read_bit_string (GNode *asn, GBytes **data)
+gkm_data_asn1_read_bit_string (GNode *asn, GBytes **data, gsize *data_bits)
 {
 	GBytes *buf;
 	guint n_bits;
@@ -146,16 +174,17 @@ gkm_data_asn1_read_bit_string (GNode *asn, GBytes **data)
 		return FALSE;
 
 	*data = buf;
+	*data_bits = n_bits;
 	return TRUE;
 }
 
 gboolean
-gkm_data_asn1_write_bit_string (GNode *asn, GBytes *data)
+gkm_data_asn1_write_bit_string (GNode *asn, GBytes *data, gsize data_bits)
 {
 	g_return_val_if_fail (asn, FALSE);
 	g_return_val_if_fail (data, FALSE);
 
-	egg_asn1x_set_bits_as_raw (asn, data, g_bytes_get_size(data)*8);
+	egg_asn1x_set_bits_as_raw (asn, data, data_bits);
 
 	return TRUE;
 }

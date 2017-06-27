@@ -143,6 +143,58 @@ done:
 	return params;
 }
 
+/* wrapper so we do not have to export the GQuark magic */
+GBytes *
+gkm_data_der_curve_to_ec_params (gchar *curve_name)
+{
+	GQuark oid;
+
+	init_quarks ();
+
+	oid = gkm_data_der_curve_to_oid (curve_name);
+	if (oid == 0)
+		return NULL;
+
+	return gkm_data_der_get_ec_params (oid);
+}
+
+gboolean
+gkm_data_der_encode_ecdsa_q (gcry_mpi_t q, GBytes **result)
+{
+	GNode *asn = NULL;
+	gcry_error_t gcry;
+	guchar data[1024];
+	gsize data_len = 1024;
+	GBytes *bytes;
+	gboolean rv = TRUE;
+
+	g_assert (q);
+	g_assert (*result);
+
+	gcry = gcry_mpi_print (GCRYMPI_FMT_USG, data, data_len, &data_len, q);
+	g_return_val_if_fail (gcry == 0, FALSE);
+
+	bytes = g_bytes_new_take (data, data_len);
+
+	asn = egg_asn1x_create (pk_asn1_tab, "ECKeyQ");
+	g_return_val_if_fail (asn, FALSE);
+
+	/* "consumes" bytes */
+	rv = gkm_data_asn1_write_string (asn, bytes);
+	if (!rv)
+		goto done;
+
+	*result = egg_asn1x_encode (asn, g_realloc);
+	if (result == NULL) {
+		rv = FALSE;
+		g_warning ("couldn't encode Q into the PKCS#11 structure: %s", egg_asn1x_message (asn));
+	}
+
+done:
+	egg_asn1x_destroy (asn);
+	return rv;
+}
+
 /* -----------------------------------------------------------------------------
  * KEY PARSING
  */
@@ -494,6 +546,7 @@ gkm_data_der_read_public_key_ecdsa (GBytes *data,
 	int res;
 	GNode *asn = NULL;
 	GBytes *q = NULL;
+	gsize q_bits;
 	GQuark oid;
 	const gchar *curve = NULL;
 
@@ -506,7 +559,7 @@ gkm_data_der_read_public_key_ecdsa (GBytes *data,
 	ret = GKM_DATA_FAILURE;
 
 	if (!gkm_data_asn1_read_oid (egg_asn1x_node (asn, "parameters", "namedCurve", NULL), &oid) ||
-	    !gkm_data_asn1_read_bit_string (egg_asn1x_node (asn, "q", NULL), &q))
+	    !gkm_data_asn1_read_bit_string (egg_asn1x_node (asn, "q", NULL), &q, &q_bits))
 		goto done;
 
 	curve = gkm_data_der_oid_to_curve (oid);
@@ -548,6 +601,7 @@ gkm_data_der_read_private_key_ecdsa (GBytes *data,
 	int res;
 	GNode *asn = NULL;
 	GBytes *q = NULL;
+	gsize q_bits;
 	GQuark oid;
 	const gchar *curve = NULL;
 
@@ -561,7 +615,7 @@ gkm_data_der_read_private_key_ecdsa (GBytes *data,
 
 	if (!gkm_data_asn1_read_string_mpi (egg_asn1x_node (asn, "d", NULL), &d) ||
 	    !gkm_data_asn1_read_oid (egg_asn1x_node (asn, "parameters", "namedCurve", NULL), &oid) ||
-	    !gkm_data_asn1_read_bit_string (egg_asn1x_node (asn, "q", NULL), &q))
+	    !gkm_data_asn1_read_bit_string (egg_asn1x_node (asn, "q", NULL), &q, &q_bits))
 		goto done;
 
 	curve = gkm_data_der_oid_to_curve (oid);
@@ -1144,7 +1198,7 @@ gkm_data_der_write_public_key_ecdsa (gcry_sexp_t s_key)
 
 	named_curve = egg_asn1x_node (asn, "parameters", "namedCurve", NULL);
 
-	if (!gkm_data_asn1_write_bit_string (egg_asn1x_node (asn, "q", NULL), q) ||
+	if (!gkm_data_asn1_write_bit_string (egg_asn1x_node (asn, "q", NULL), q, q_size*8) || /*XXX*/
 	    !gkm_data_asn1_write_oid (named_curve, oid))
 		goto done;
 
@@ -1196,7 +1250,7 @@ gkm_data_der_write_private_key_ecdsa (gcry_sexp_t s_key)
 	named_curve = egg_asn1x_node (asn, "parameters", "namedCurve", NULL);
 
 	if (!gkm_data_asn1_write_string_mpi (egg_asn1x_node (asn, "d", NULL), d) ||
-	    !gkm_data_asn1_write_bit_string (egg_asn1x_node (asn, "q", NULL), q) ||
+	    !gkm_data_asn1_write_bit_string (egg_asn1x_node (asn, "q", NULL), q, q_size*8) ||
 	    !gkm_data_asn1_write_oid (named_curve, oid))
 		goto done;
 

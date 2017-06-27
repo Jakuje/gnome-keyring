@@ -173,6 +173,9 @@ teardown (Test *test, gconstpointer unused)
 {
 }
 
+/* Reads private key from SSH client
+ * Writes the public key
+ * Reads the written public key */
 static void
 test_read_write_rsa (Test *test, gconstpointer unused)
 {
@@ -241,7 +244,7 @@ test_read_write_rsa (Test *test, gconstpointer unused)
 	new_pub_attr = gck_attributes_find (new_pub_attrs, CKA_PUBLIC_EXPONENT);
 	pub_attr = gck_attributes_find (pub_attrs, CKA_PUBLIC_EXPONENT);
 	g_assert (memcmp (new_pub_attr->value, pub_attr->value, new_pub_attr->length) == 0);
-	
+
 	new_pub_attr = gck_attributes_find (new_pub_attrs, CKA_MODULUS);
 	pub_attr = gck_attributes_find (pub_attrs, CKA_MODULUS);
 	g_assert (memcmp (new_pub_attr->value, pub_attr->value, new_pub_attr->length) == 0);

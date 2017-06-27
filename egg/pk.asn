@@ -108,6 +108,9 @@ Parameters ::= CHOICE {
 	implicitlyCA  NULL
 }
 
+-- bogus attribute used to encode Q into CKA_EC_POINT
+ECKeyQ ::= OCTET STRING
+
 ECPrivateKey ::= SEQUENCE {
 	version        INTEGER { ecPrivkeyVer1(1) }, -- should be 1
 	d     OCTET STRING, -- private key

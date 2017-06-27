@@ -18,7 +18,11 @@ TestStringMpi ::= SEQUENCE {
 }
 
 TestBitString ::= SEQUENCE {
-	data                     BIT STRING
+	data                    BIT STRING
+}
+
+TestString ::= SEQUENCE {
+	data                    OCTET STRING
 }
 
 TestOid ::= SEQUENCE {

@@ -71,6 +71,7 @@ const ASN1_ARRAY_TYPE pk_asn1_tab[] = {
   { "Parameters", 1610612754, NULL },
   { "namedCurve", 1073741836, NULL },
   { "implicitlyCA", 20, NULL },
+  { "ECKeyQ", 1073741831, NULL },
   { "ECPrivateKey", 1610612741, NULL },
   { "version", 1610874883, NULL },
   { "ecPrivkeyVer1", 1, "1"},

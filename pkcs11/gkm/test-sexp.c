@@ -26,14 +26,15 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "mock-module.h"
+
 #include "gkm/gkm-crypto.h"
 #include "gkm/gkm-sexp.h"
+#include "gkm/gkm-private-xsa-key.h"
 
 #include "egg/egg-secure-memory.h"
 
 #include <gcrypt.h>
-
-EGG_SECURE_DEFINE_GLIB_GLOBALS ();
 
 #define TEST_RSA \
 "(private-key (rsa " \
@@ -68,6 +69,7 @@ typedef struct {
 	gcry_sexp_t rsakey;
 	gcry_sexp_t dsakey;
 	gcry_sexp_t ecdsakey;
+	GkmModule *module;
 } Test;
 
 static void
@@ -83,6 +85,10 @@ setup (Test *test, gconstpointer unused)
 	g_return_if_fail (gcry == 0);
 	gcry = gcry_sexp_new (&test->ecdsakey, TEST_ECDSA, strlen (TEST_ECDSA), 1);
 	g_return_if_fail (gcry == 0);
+
+	/* create a bogus module */
+	test->module = mock_module_initialize_and_enter ();
+
 }
 
 static void
@@ -94,6 +100,8 @@ teardown (Test *test, gconstpointer unused)
 	test->dsakey = NULL;
 	gcry_sexp_release (test->ecdsakey);
 	test->ecdsakey = NULL;
+
+	mock_module_leave_and_finalize ();
 }
 
 static void
@@ -269,6 +277,165 @@ test_sign_verify (Test *test, gconstpointer unused)
 
 	gcry_sexp_release (pubkey);
 }
+
+static void
+assert_attribute_ulong (GkmPrivateXsaKey *key, CK_ATTRIBUTE_TYPE type, CK_ULONG value)
+{
+	CK_ATTRIBUTE attr;
+	static gchar buffer[8];
+	CK_RV ret;
+	GkmPrivateXsaKeyClass *key_class;
+	GkmObject *base;
+
+	base = GKM_OBJECT (key); /* cast */
+	key_class = GKM_PRIVATE_XSA_KEY_GET_CLASS(key);
+
+	attr.pValue = (void *) &buffer;
+	attr.ulValueLen = 8;
+
+	attr.type = type;
+	ret = GKM_OBJECT_CLASS (key_class)->get_attribute (base, NULL, &attr);
+	g_assert (ret == CKR_OK);
+	g_assert (attr.ulValueLen == 8);
+	g_assert (*( (CK_ULONG *) attr.pValue) == value);
+}
+
+static void
+assert_attribute_bool (GkmPrivateXsaKey *key, CK_ATTRIBUTE_TYPE type, CK_BBOOL value)
+{
+	CK_ATTRIBUTE attr;
+	static gchar buffer[8];
+	CK_RV ret;
+	GkmPrivateXsaKeyClass *key_class;
+	GkmObject *base;
+
+	base = GKM_OBJECT (key); /* cast */
+	key_class = GKM_PRIVATE_XSA_KEY_GET_CLASS(key);
+
+	attr.pValue = (void *) &buffer;
+	attr.ulValueLen = 8;
+
+	attr.type = type;
+	ret = GKM_OBJECT_CLASS (key_class)->get_attribute (base, NULL, &attr);
+	g_assert (ret == CKR_OK);
+	g_assert (attr.ulValueLen == 1);
+	g_assert (*( (CK_BBOOL *) attr.pValue) == value);
+}
+
+static void
+assert_attribute_buffer (GkmPrivateXsaKey *key, CK_ATTRIBUTE_TYPE type, char *exp, gsize exp_len)
+{
+	CK_ATTRIBUTE attr;
+	static gchar buffer[1024];
+	CK_RV ret;
+	GkmPrivateXsaKeyClass *key_class;
+	GkmObject *base;
+
+	base = GKM_OBJECT (key); /* cast */
+	key_class = GKM_PRIVATE_XSA_KEY_GET_CLASS(key);
+
+	attr.pValue = (void *) &buffer;
+	attr.ulValueLen = 1024;
+
+	attr.type = type;
+	ret = GKM_OBJECT_CLASS (key_class)->get_attribute (base, NULL, &attr);
+	g_assert (ret == CKR_OK);
+	g_assert (attr.ulValueLen == exp_len);
+	g_assert (memcmp(attr.pValue, exp, exp_len) == 0);
+}
+
+static void
+assert_attribute_error (GkmPrivateXsaKey *key, CK_ATTRIBUTE_TYPE type, CK_RV expect)
+{
+	CK_ATTRIBUTE attr;
+	CK_RV ret;
+	GkmPrivateXsaKeyClass *key_class;
+	GkmObject *base;
+
+	base = GKM_OBJECT (key); /* cast */
+	key_class = GKM_PRIVATE_XSA_KEY_GET_CLASS(key);
+
+	attr.pValue = NULL;
+	attr.ulValueLen = 0;
+
+	attr.type = type;
+	ret = GKM_OBJECT_CLASS (key_class)->get_attribute (base, NULL, &attr);
+	g_assert (ret == ret);
+}
+
+/* Test sexp -> PKCS#11 attributes */
+static void
+test_rsa_attributes (Test *test, gconstpointer unused)
+{
+	GkmPrivateXsaKey *key;
+
+	key = g_object_new (GKM_TYPE_PRIVATE_XSA_KEY,
+                            "base-sexp", gkm_sexp_new (test->rsakey),
+                            "module", test->module, /*"manager", NULL,*/ NULL);
+	g_assert (key != NULL);
+
+	assert_attribute_ulong (key, CKA_CLASS, CKO_PRIVATE_KEY);
+	assert_attribute_bool (key, CKA_PRIVATE, TRUE);
+	assert_attribute_bool (key, CKA_SIGN, TRUE);
+	assert_attribute_bool (key, CKA_SIGN_RECOVER, FALSE);
+	assert_attribute_ulong (key, CKA_KEY_TYPE, CKK_RSA);
+
+	/* XXX to test parser and reader, there might be more tests */
+
+	g_clear_object (&key);
+}
+
+static void
+test_dsa_attributes (Test *test, gconstpointer unused)
+{
+	GkmPrivateXsaKey *key;
+
+	key = g_object_new (GKM_TYPE_PRIVATE_XSA_KEY,
+                            "base-sexp", gkm_sexp_new (test->dsakey),
+                            "module", test->module, /*"manager", NULL,*/ NULL);
+	g_assert (key != NULL);
+
+	assert_attribute_ulong (key, CKA_CLASS, CKO_PRIVATE_KEY);
+	assert_attribute_bool (key, CKA_PRIVATE, TRUE);
+	assert_attribute_bool (key, CKA_SIGN, TRUE);
+	assert_attribute_bool (key, CKA_SIGN_RECOVER, FALSE);
+	assert_attribute_ulong (key, CKA_KEY_TYPE, CKK_DSA);
+	assert_attribute_error (key, CKA_VALUE, CKR_ATTRIBUTE_SENSITIVE);
+
+	/* XXX to test parser and reader, there might be more tests */
+
+	g_clear_object (&key);
+}
+
+static void
+test_ecdsa_attributes (Test *test, gconstpointer unused)
+{
+	GkmPrivateXsaKey *key;
+
+	key = g_object_new (GKM_TYPE_PRIVATE_XSA_KEY,
+                            "base-sexp", gkm_sexp_new (test->ecdsakey),
+                            "module", test->module, /*"manager", NULL,*/ NULL);
+	g_assert (key != NULL);
+
+	assert_attribute_ulong (key, CKA_CLASS, CKO_PRIVATE_KEY);
+	assert_attribute_bool (key, CKA_PRIVATE, TRUE);
+	assert_attribute_bool (key, CKA_SIGN, TRUE);
+	assert_attribute_bool (key, CKA_SIGN_RECOVER, FALSE);
+	assert_attribute_ulong (key, CKA_KEY_TYPE, CKK_ECDSA);
+	assert_attribute_error (key, CKA_VALUE, CKR_ATTRIBUTE_SENSITIVE);
+	assert_attribute_buffer (key, CKA_EC_PARAMS,
+                                 "\x06" /* tag (OID) */
+                                 "\x08" /* length (8 bytes) */
+                                 "\x2a\x86\x48\xce\x3d\x03\x01\x07", /* DER encoded OID */
+                                 10);
+	assert_attribute_buffer (key, CKA_EC_POINT,
+                                 "\x04" /* tag (OCTET STRING) */
+                                 "\x41" /* length (65 bytes) */
+                                 "\x04\xd4\xf6\xa6\x73\x8d\x9b\x8d\x3a\x70\x75\xc1\xe4\xee\x95\x01\x5f\xc0\xc9\xb7\xe4\x27\x2d\x2b\xeb\x66\x44\xd3\x60\x9f\xc7\x81\xb7\x1f\x9a\x80\x72\xf5\x8c\xb6\x6a\xe2\xf8\x9b\xb1\x24\x51\x87\x3a\xbf\x7d\x91\xf9\xe1\xfb\xf9\x6b\xf2\xf7\x0e\x73\xaa\xc9\xa2\x83", 67);
+
+	g_clear_object (&key);
+}
+
 int
 main (int argc, char **argv)
 {
@@ -280,6 +447,9 @@ main (int argc, char **argv)
 	g_test_add ("/gkm/sexp/parse_key", Test, NULL, setup, test_parse_key, teardown);
 	g_test_add ("/gkm/sexp/key_to_public", Test, NULL, setup, test_key_to_public, teardown);
 	g_test_add ("/gkm/sexp/sign_verify", Test, NULL, setup, test_sign_verify, teardown);
+	g_test_add ("/gkm/sexp/rsa_attributes", Test, NULL, setup, test_rsa_attributes, teardown);
+	g_test_add ("/gkm/sexp/dsa_attributes", Test, NULL, setup, test_dsa_attributes, teardown);
+	g_test_add ("/gkm/sexp/ecdsa_attributes", Test, NULL, setup, test_ecdsa_attributes, teardown);
 
 	return g_test_run ();
 }

@@ -262,6 +262,12 @@ gkm_public_xsa_key_real_get_attribute (GkmObject *base, GkmSession *session, CK_
 	/* DSA public value */
 	case CKA_VALUE:
 		return gkm_sexp_key_set_part (GKM_SEXP_KEY (self), GCRY_PK_DSA, "y", attr);
+
+	case CKA_EC_POINT:
+		return gkm_sexp_key_set_part_string (GKM_SEXP_KEY (self), GCRY_PK_ECC, "q", attr);
+
+	case CKA_EC_PARAMS:
+		return gkm_sexp_key_set_ec_params (GKM_SEXP_KEY (self), GCRY_PK_ECC, attr);
 	};
 
 	return GKM_OBJECT_CLASS (gkm_public_xsa_key_parent_class)->get_attribute (base, session, attr);

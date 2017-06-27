@@ -38,11 +38,19 @@ gboolean           gkm_data_asn1_read_string_mpi               (GNode *asn,
 gboolean           gkm_data_asn1_write_string_mpi              (GNode *asn,
                                                                 gcry_mpi_t mpi);
 
-gboolean           gkm_data_asn1_read_bit_string               (GNode *asn,
+gboolean           gkm_data_asn1_read_string                   (GNode *asn,
                                                                 GBytes **data);
 
-gboolean           gkm_data_asn1_write_bit_string              (GNode *asn,
+gboolean           gkm_data_asn1_write_string                  (GNode *asn,
                                                                 GBytes *data);
+
+gboolean           gkm_data_asn1_read_bit_string               (GNode *asn,
+                                                                GBytes **data,
+                                                                gsize *data_bits);
+
+gboolean           gkm_data_asn1_write_bit_string              (GNode *asn,
+                                                                GBytes *data,
+                                                                gsize data_bits);
 
 gboolean           gkm_data_asn1_read_oid                      (GNode *asn,
                                                                 GQuark *oid);
