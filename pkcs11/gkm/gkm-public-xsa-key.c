@@ -145,26 +145,29 @@ static CK_RV
 create_ecdsa_public (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs, gcry_sexp_t *skey)
 {
 	gcry_error_t gcry;
-	const gchar *curve_name;
-	gchar *q = NULL;
+	const gchar *curve_name, *q_data;
+	GBytes *q = NULL;
+	gsize q_size;
 	GQuark oid;
 	CK_RV ret;
 
 	if (!gkm_attributes_find_ecc_oid (attrs, n_attrs, &oid) ||
-	    !gkm_attributes_find_string (attrs, n_attrs, CKA_EC_POINT, &q)) {
+	    !gkm_attributes_find_der_bytes (attrs, n_attrs, CKA_EC_POINT, &q)) {
 		ret = CKR_TEMPLATE_INCOMPLETE;
 		goto done;
 	}
 
 	curve_name = gkm_data_der_oid_to_curve (oid);
-	if (curve_name != NULL) {
+	if (curve_name == NULL) {
 		ret = CKR_FUNCTION_FAILED;
 		goto done;
 	}
 
+	q_data = g_bytes_get_data (q, &q_size);
+
 	gcry = gcry_sexp_build (skey, NULL,
-	                        "(public-key (ecdsa (curve %b) (q %b)))",
-	                        strlen(curve_name), curve_name, strlen(q), q); // XXX
+	                        "(public-key (ecdsa (curve %s) (q %b)))",
+	                        curve_name, q_size, q_data);
 
 	if (gcry != 0) {
 		g_message ("couldn't create ECDSA key from passed attributes: %s", gcry_strerror (gcry));
@@ -177,7 +180,7 @@ create_ecdsa_public (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs, gcry_sexp_t *skey
 	ret = CKR_OK;
 
 done:
-	free (q);
+	g_bytes_unref (q);
 	return ret;
 }
 

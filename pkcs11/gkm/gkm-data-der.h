@@ -55,6 +55,9 @@ GBytes *           gkm_data_der_get_ec_params                (GQuark oid);
 gboolean           gkm_data_der_encode_ecdsa_q               (gcry_mpi_t q,
                                                               GBytes **result);
 
+gboolean           gkm_data_der_decode_ecdsa_q               (GBytes *data,
+                                                              GBytes **result);
+
 GBytes *           gkm_data_der_curve_to_ec_params           (gchar *curve_name);
 
 GkmDataResult      gkm_data_der_read_private_key_ecdsa       (GBytes *data,

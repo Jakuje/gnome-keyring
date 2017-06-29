@@ -57,14 +57,31 @@ gkm_attributes_find_ecc_oid (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs, GQuark *v
 		return FALSE;
 
 	bytes = g_bytes_new (attr->pValue, attr->ulValueLen);
+	g_return_val_if_fail (bytes != NULL, FALSE);
 
 	oid = gkm_data_der_oid_from_params (bytes);
+	g_return_val_if_fail (oid != 0, FALSE);
+	*value = oid;
 
 	g_bytes_unref (bytes);
-
-	return oid;
+	return TRUE;
 }
 
+gboolean
+gkm_attributes_find_der_bytes (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs,
+                               CK_ATTRIBUTE_TYPE type, GBytes **value)
+{
+	GBytes *data;
+	gboolean rv;
+
+	rv = gkm_attributes_find_bytes (attrs, n_attrs, type, &data);
+	g_return_val_if_fail (rv, FALSE);
+
+	rv = gkm_data_der_decode_ecdsa_q (data, value);
+	g_return_val_if_fail (rv, FALSE);
+
+	return TRUE;
+}
 
 static CK_RV
 create_rsa_private (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs, gcry_sexp_t *skey)
@@ -172,27 +189,30 @@ create_ecdsa_private (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs, gcry_sexp_t *ske
 {
 	gcry_error_t gcry;
 	gcry_mpi_t d = NULL;
-	const gchar *curve_name;
-	gchar *q = NULL;
+	const gchar *curve_name, *q_data;
+	GBytes *q = NULL;
+	gsize q_size;
 	GQuark oid;
 	CK_RV ret;
 
 	if (!gkm_attributes_find_ecc_oid (attrs, n_attrs, &oid) ||
-	    !gkm_attributes_find_string (attrs, n_attrs, CKA_EC_POINT, &q) ||
+	    !gkm_attributes_find_der_bytes (attrs, n_attrs, CKA_EC_POINT, &q) ||
 	    !gkm_attributes_find_mpi (attrs, n_attrs, CKA_VALUE, &d)) {
 		ret = CKR_TEMPLATE_INCOMPLETE;
 		goto done;
 	}
 
 	curve_name = gkm_data_der_oid_to_curve (oid);
-	if (curve_name != NULL) {
+	if (curve_name == NULL) {
 		ret = CKR_FUNCTION_FAILED;
 		goto done;
 	}
 
+	q_data = g_bytes_get_data (q, &q_size);
+
 	gcry = gcry_sexp_build (skey, NULL,
-	                        "(private-key (ecdsa (curve %b) (q %b) (d %m)))",
-	                        strlen(curve_name), curve_name, strlen(q), q, d);
+	                        "(private-key (ecdsa (curve %s) (q %b) (d %m)))",
+	                        curve_name, q_size, q_data, d);
 
 	if (gcry != 0) {
 		g_message ("couldn't create ECDSA key from passed attributes: %s", gcry_strerror (gcry));
@@ -205,7 +225,7 @@ create_ecdsa_private (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs, gcry_sexp_t *ske
 	ret = CKR_OK;
 
 done:
-	free (q);
+	g_bytes_unref (q);
 	gcry_mpi_release (d);
 	return ret;
 }

@@ -104,6 +104,8 @@ gkm_data_der_oid_from_params (GBytes *params)
 	GNode *asn;
 	GQuark oid;
 
+	init_quarks ();
+
 	asn = egg_asn1x_create_and_decode (pk_asn1_tab, "Parameters", params);
 	if (!asn)
 		goto done;
@@ -191,6 +193,24 @@ gkm_data_der_encode_ecdsa_q (gcry_mpi_t q, GBytes **result)
 	}
 
 done:
+	egg_asn1x_destroy (asn);
+	return rv;
+}
+
+gboolean
+gkm_data_der_decode_ecdsa_q (GBytes *data, GBytes **result)
+{
+	GNode *asn = NULL;
+	gboolean rv = TRUE;
+
+	g_assert (data);
+	g_assert (result);
+
+	asn = egg_asn1x_create_and_decode (pk_asn1_tab, "ECKeyQ", data);
+	g_return_val_if_fail (asn, FALSE);
+
+	rv = gkm_data_asn1_read_string (asn, result);
+
 	egg_asn1x_destroy (asn);
 	return rv;
 }
