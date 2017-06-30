@@ -171,7 +171,7 @@ gkm_data_der_encode_ecdsa_q (gcry_mpi_t q, GBytes **result)
 	gboolean rv = TRUE;
 
 	g_assert (q);
-	g_assert (*result);
+	g_assert (result);
 
 	gcry = gcry_mpi_print (GCRYMPI_FMT_USG, data, data_len, &data_len, q);
 	g_return_val_if_fail (gcry == 0, FALSE);
