@@ -202,19 +202,24 @@ gkd_ssh_agent_proto_read_mpi_v1 (EggBuffer *req,
 }
 
 gboolean
-gkd_ssh_agent_proto_read_string (EggBuffer *req,
-                                 gsize *offset,
-                                 GckBuilder *attrs,
-                                 CK_ATTRIBUTE_TYPE type)
+gkd_ssh_agent_proto_read_string_to_der (EggBuffer *req,
+                                        gsize *offset,
+                                        GckBuilder *attrs,
+                                        CK_ATTRIBUTE_TYPE type)
 {
-       const guchar *data;
-       gsize len;
+	const guchar *data, *q_data;
+	gsize len, q_len;
+	GBytes *bytes;
 
-       if (!egg_buffer_get_byte_array (req, *offset, offset, &data, &len))
-               return FALSE;
+	if (!egg_buffer_get_byte_array (req, *offset, offset, &data, &len))
+		return FALSE;
 
-       gck_builder_add_data (attrs, type, data, len);
-       return TRUE;
+	bytes = gkm_data_der_encode_ecdsa_q_str (data, len);
+
+	q_data = g_bytes_get_data (bytes, &q_len);
+
+	gck_builder_add_data (attrs, type, q_data, q_len);
+	return TRUE;
 }
 
 gboolean
@@ -579,7 +584,7 @@ gkd_ssh_agent_proto_read_pair_ecdsa (EggBuffer *req,
 	g_assert (pub_attrs);
 
 	if (!gkd_ssh_agent_proto_read_ecdsa_curve (req, offset, priv_attrs) ||
-	    !gkd_ssh_agent_proto_read_string (req, offset, priv_attrs, CKA_EC_POINT) ||
+	    !gkd_ssh_agent_proto_read_string_to_der (req, offset, priv_attrs, CKA_EC_POINT) ||
 	    !gkd_ssh_agent_proto_read_mpi (req, offset, priv_attrs, CKA_VALUE))
 		return FALSE;
 
@@ -608,7 +613,7 @@ gkd_ssh_agent_proto_read_public_ecdsa (EggBuffer *req,
 	g_assert (attrs);
 
 	if (!gkd_ssh_agent_proto_read_ecdsa_curve (req, offset, attrs) ||
-	    !gkd_ssh_agent_proto_read_string (req, offset, attrs, CKA_EC_POINT))
+	    !gkd_ssh_agent_proto_read_string_to_der (req, offset, attrs, CKA_EC_POINT))
 		return FALSE;
 
 	/* Add in your basic other required attributes */
@@ -729,29 +734,46 @@ gkd_ssh_agent_proto_write_public_ecdsa (EggBuffer *resp, GckAttributes *attrs)
 	GQuark oid;
 	const gchar *key_type;
 	guchar *data;
+	const guchar *q_data;
+	GBytes *bytes, *q;
+	gboolean rv;
+	gsize q_len;
 
 	g_assert (resp);
 	g_assert (attrs);
 
 	gkd_ssh_agent_proto_init_quarks ();
 
+	/* decode curve name from EC_PARAMS */
 	oid = gkd_ssh_agent_proto_oid_from_params (attrs);
 	g_return_val_if_fail (oid, FALSE);
 
 	key_type = gkd_ssh_agent_proto_oid_to_curve (oid);
 	g_return_val_if_fail (key_type != NULL, FALSE);
 
-	data = egg_buffer_add_byte_array_empty (resp, strlen(key_type));
+	data = egg_buffer_add_byte_array_empty (resp, strlen (key_type));
 	if (data == NULL)
 		return FALSE;
 
 	memcpy (data, key_type, strlen(key_type));
 
+	/* decode DER-encoded value Q */
 	attr = gck_attributes_find (attrs, CKA_EC_POINT);
 	g_return_val_if_fail (attr, FALSE);
 
-	if (!gkd_ssh_agent_proto_write_string (resp, attr))
+	bytes = g_bytes_new_static (attr->value, attr->length);
+	rv = gkm_data_der_decode_ecdsa_q (bytes, &q);
+	g_return_val_if_fail (rv, FALSE);
+	g_bytes_unref (bytes);
+
+	q_data = g_bytes_get_data (q, &q_len);
+
+	data = egg_buffer_add_byte_array_empty (resp, q_len);
+	if (data == NULL)
 		return FALSE;
+
+	memcpy (data, q_data, q_len);
+	g_bytes_unref (q);
 
 	return TRUE;
 }

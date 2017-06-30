@@ -134,7 +134,7 @@ const guchar*         gkd_ssh_agent_proto_read_challenge_v1         (EggBuffer *
                                                                      gsize *offset,
                                                                      gsize *n_challenge);
 
-gboolean              gkd_ssh_agent_proto_read_string               (EggBuffer *req,
+gboolean              gkd_ssh_agent_proto_read_string_to_der        (EggBuffer *req,
                                                                      gsize *offset,
                                                                      GckBuilder *attrs,
                                                                      CK_ATTRIBUTE_TYPE type);

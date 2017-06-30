@@ -555,6 +555,7 @@ gkm_crypto_prepare (GkmSession *session, CK_MECHANISM_TYPE mech, GkmObject *key)
 	switch (mech) {
 	case CKM_RSA_PKCS:
 	case CKM_RSA_X_509:
+	case CKM_ECDSA:
 	case CKM_DSA:
 		return gkm_crypto_prepare_xsa (session, mech, key);
 	default:

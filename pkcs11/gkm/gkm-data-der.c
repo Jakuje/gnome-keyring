@@ -108,13 +108,10 @@ gkm_data_der_oid_from_params (GBytes *params)
 
 	asn = egg_asn1x_create_and_decode (pk_asn1_tab, "Parameters", params);
 	if (!asn)
-		goto done;
+		return 0;
 
 	oid = egg_asn1x_get_oid_as_quark (egg_asn1x_node (asn, "namedCurve", NULL));
-	if (!oid)
-		goto done;
 
-done:
 	egg_asn1x_destroy (asn);
 	return oid;
 }
@@ -160,14 +157,35 @@ gkm_data_der_curve_to_ec_params (gchar *curve_name)
 	return gkm_data_der_get_ec_params (oid);
 }
 
+GBytes *
+gkm_data_der_encode_ecdsa_q_str (const guchar *data, gsize data_len)
+{
+	GNode *asn = NULL;
+	GBytes *bytes, *result = NULL;
+
+	asn = egg_asn1x_create (pk_asn1_tab, "ECKeyQ");
+	g_return_val_if_fail (asn, FALSE);
+
+	bytes = g_bytes_new_static (data, data_len);
+
+	/* "consumes" bytes */
+	if (!gkm_data_asn1_write_string (asn, bytes))
+		goto done;
+
+	result = egg_asn1x_encode (asn, g_realloc);
+	if (result == NULL)
+		g_warning ("couldn't encode Q into the PKCS#11 structure: %s", egg_asn1x_message (asn));
+done:
+	egg_asn1x_destroy (asn);
+	return result;
+}
+
 gboolean
 gkm_data_der_encode_ecdsa_q (gcry_mpi_t q, GBytes **result)
 {
-	GNode *asn = NULL;
 	gcry_error_t gcry;
 	guchar data[1024];
 	gsize data_len = 1024;
-	GBytes *bytes;
 	gboolean rv = TRUE;
 
 	g_assert (q);
@@ -176,24 +194,10 @@ gkm_data_der_encode_ecdsa_q (gcry_mpi_t q, GBytes **result)
 	gcry = gcry_mpi_print (GCRYMPI_FMT_USG, data, data_len, &data_len, q);
 	g_return_val_if_fail (gcry == 0, FALSE);
 
-	bytes = g_bytes_new_take (data, data_len);
-
-	asn = egg_asn1x_create (pk_asn1_tab, "ECKeyQ");
-	g_return_val_if_fail (asn, FALSE);
-
-	/* "consumes" bytes */
-	rv = gkm_data_asn1_write_string (asn, bytes);
-	if (!rv)
-		goto done;
-
-	*result = egg_asn1x_encode (asn, g_realloc);
-	if (result == NULL) {
+	*result = gkm_data_der_encode_ecdsa_q_str (data, data_len);
+	if (*result == NULL)
 		rv = FALSE;
-		g_warning ("couldn't encode Q into the PKCS#11 structure: %s", egg_asn1x_message (asn));
-	}
 
-done:
-	egg_asn1x_destroy (asn);
 	return rv;
 }
 
@@ -1192,7 +1196,7 @@ gkm_data_der_write_public_key_ecdsa (gcry_sexp_t s_key)
 {
 	GNode *asn = NULL, *named_curve;
 	gcry_mpi_t d = NULL;
-	GBytes *result = NULL, *q;
+	GBytes *result = NULL, *q = NULL;
 	gchar *q_data = NULL;
 	GQuark oid;
 	gchar *curve = NULL;
@@ -1242,7 +1246,7 @@ gkm_data_der_write_private_key_ecdsa (gcry_sexp_t s_key)
 {
 	GNode *asn = NULL, *named_curve;
 	gcry_mpi_t d = NULL;
-	GBytes *result = NULL, *q;
+	GBytes *result = NULL, *q = NULL;
 	gchar *q_data = NULL;
 	GQuark oid;
 	gchar *curve = NULL;

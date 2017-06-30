@@ -52,6 +52,9 @@ GQuark             gkm_data_der_oid_from_params              (GBytes *params);
 
 GBytes *           gkm_data_der_get_ec_params                (GQuark oid);
 
+GBytes *           gkm_data_der_encode_ecdsa_q_str           (const guchar *data,
+                                                              gsize data_len);
+
 gboolean           gkm_data_der_encode_ecdsa_q               (gcry_mpi_t q,
                                                               GBytes **result);
 
