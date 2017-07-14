@@ -112,12 +112,6 @@ CK_RV                    gkm_crypto_sexp_to_data                       (gcry_sex
                                                                         EggPadding padding,
                                                                         ...) G_GNUC_NULL_TERMINATED;
 
-CK_RV                    gkm_crypto_sexp_to_buffer                     (gcry_sexp_t sexp,
-                                                                        CK_BYTE_PTR data,
-                                                                        CK_ULONG *n_data,
-                                                                        EggPadding padding,
-                                                                        ...) G_GNUC_NULL_TERMINATED;
-
 CK_RV                    gkm_crypto_data_to_sexp                       (const gchar *format,
                                                                         guint nbits,
                                                                         EggPadding padding,

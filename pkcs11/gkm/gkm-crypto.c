@@ -145,45 +145,6 @@ gkm_crypto_sexp_to_data (gcry_sexp_t sexp, guint bits, CK_BYTE_PTR data,
 }
 
 CK_RV
-gkm_crypto_sexp_to_buffer (gcry_sexp_t sexp, CK_BYTE_PTR data,
-                           CK_ULONG *n_data, EggPadding padding, ...)
-{
-	gcry_sexp_t at = NULL;
-	gsize n_block;
-	guchar *block;
-	va_list va;
-
-	g_assert (sexp);
-	g_assert (data);
-	g_assert (n_data);
-
-	/* First try and dig out sexp child based on arguments */
-	va_start (va, padding);
-	at = gkm_sexp_get_childv (sexp, va);
-	va_end (va);
-
-	/* It's expected we would find it */
-	g_return_val_if_fail (at != NULL, CKR_GENERAL_ERROR);
-
-	/* Parse out the value */
-	block = gcry_sexp_nth_buffer (at, 1, &n_block);
-	g_return_val_if_fail (block != NULL, CKR_GENERAL_ERROR);
-	gcry_sexp_release (at);
-
-	/* Now stuff it into the output buffer */
-	if (n_block > *n_data)
-	        return CKR_BUFFER_TOO_SMALL;
-
-	memcpy (data + (n_block - *n_data), block, n_block); // XXX pad with zeroes
-	//memcpy (data, block, n_block); // XXX pad with zeroes
-	*n_data = n_block;
-	g_free (block);
-
-	return CKR_OK;
-}
-
-
-CK_RV
 gkm_crypto_encrypt (GkmSession *session, CK_MECHANISM_TYPE mech, CK_BYTE_PTR data,
                     CK_ULONG n_data, CK_BYTE_PTR encrypted, CK_ULONG_PTR n_encrypted)
 {

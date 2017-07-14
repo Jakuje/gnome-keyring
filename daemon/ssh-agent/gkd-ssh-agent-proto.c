@@ -827,5 +827,21 @@ gkd_ssh_agent_proto_write_signature_dsa (EggBuffer *resp, CK_BYTE_PTR signature,
 gboolean
 gkd_ssh_agent_proto_write_signature_ecdsa (EggBuffer *resp, CK_BYTE_PTR signature, CK_ULONG n_signature)
 {
-	return egg_buffer_add_byte_array (resp, signature, n_signature);
+	gboolean rv;
+	gsize mpi_size;
+
+	g_return_val_if_fail ((n_signature % 2) == 0, FALSE);
+
+	/* First we need header for the whole signature blob (including 2 length headers */
+	egg_buffer_add_uint32 (resp, n_signature + 8);
+
+	/* PKCS#11 lists the MPIs concatenated, SSH-agent expects the size headers */
+	mpi_size = n_signature/2;
+
+	rv = egg_buffer_add_byte_array (resp, signature, mpi_size);
+	g_return_val_if_fail (rv, FALSE);
+
+	rv = egg_buffer_add_byte_array (resp, signature+mpi_size, mpi_size);
+
+	return rv;
 }

@@ -41,22 +41,20 @@ gkm_ecdsa_mechanism_sign (gcry_sexp_t sexp, CK_BYTE_PTR data, CK_ULONG n_data,
 {
 	gcry_sexp_t ssig, splain;
 	gcry_error_t gcry;
-	CK_ULONG size, key_bytes;
+	CK_ULONG size, key_bytes, key_bits;
 	CK_RV rv;
 
 	g_return_val_if_fail (sexp, CKR_GENERAL_ERROR);
 	g_return_val_if_fail (n_signature, CKR_ARGUMENTS_BAD);
 	g_return_val_if_fail (data, CKR_ARGUMENTS_BAD);
 
-	/*if (n_data != 20)
-		return CKR_DATA_LEN_RANGE;*/
-
 	/* If no output, then don't process */
-	key_bytes = gcry_pk_get_nbits(sexp)/8;
+	key_bits = gcry_pk_get_nbits(sexp);
+	key_bytes = (key_bits + 7)/8;
 	if (!signature) {
 		*n_signature = key_bytes * 2;
 		return CKR_OK;
-	} else if (*n_signature < key_bytes * 2) {
+	} else if (*n_signature < (key_bytes * 2)) {
 		*n_signature = key_bytes * 2;
 		return CKR_BUFFER_TOO_SMALL;
 	}
@@ -76,14 +74,15 @@ gkm_ecdsa_mechanism_sign (gcry_sexp_t sexp, CK_BYTE_PTR data, CK_ULONG n_data,
 		return CKR_FUNCTION_FAILED;
 	}
 
+	/* signature consists of two mpint values concatenated */
 	size = key_bytes;
-	rv = gkm_crypto_sexp_to_buffer (ssig, signature, &size, NULL, "ecdsa", "r", NULL);
+	rv = gkm_crypto_sexp_to_data (ssig, key_bits, signature, &size, NULL, "ecdsa", "r", NULL);
 	if (rv == CKR_OK) {
 		g_return_val_if_fail (size == key_bytes, CKR_GENERAL_ERROR);
-		rv = gkm_crypto_sexp_to_buffer (ssig, signature + key_bytes, &size, NULL, "ecdsa", "s", NULL);
+		rv = gkm_crypto_sexp_to_data (ssig, key_bits, signature + key_bytes, &size, NULL, "ecdsa", "s", NULL);
 		if (rv == CKR_OK) {
 			g_return_val_if_fail (size == key_bytes, CKR_GENERAL_ERROR);
-			*n_signature = key_bytes*2;
+			*n_signature = key_bytes * 2;
 		}
 	}
 
