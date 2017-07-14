@@ -884,12 +884,28 @@ op_v1_request_identities (GkdSshAgentCall *call)
 	return TRUE;
 }
 
+/* XXX we should create it using asn1x ... */
+static const guchar SHA512_ASN[] = /* Object ID is 2.16.840.1.101.3.4.2.3  */
+	{ 0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48,
+	  0x01, 0x65, 0x03, 0x04, 0x02, 0x03, 0x05, 0x00, 0x04,
+	  0x40 };
+
+static const guchar SHA384_ASN[] = /* Object ID is 2.16.840.1.101.3.4.2.2  */
+	{ 0x30, 0x41, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48,
+	  0x01, 0x65, 0x03, 0x04, 0x02, 0x02, 0x05, 0x00, 0x04,
+	  0x30 };
+
+static const guchar SHA256_ASN[] = /* Object ID is 2.16.840.1.101.3.4.2.1  */
+	{ 0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48,
+	  0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04,
+	  0x20 };
+
 static const guchar SHA1_ASN[15] = /* Object ID is 1.3.14.3.2.26 */
 	{ 0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03,
 	  0x02, 0x1a, 0x05, 0x00, 0x04, 0x14 };
 
 static const guchar MD5_ASN[18] = /* Object ID is 1.2.840.113549.2.5 */
-	{ 0x30, 0x20, 0x30, 0x0c, 0x06, 0x08, 0x2a, 0x86,0x48,
+	{ 0x30, 0x20, 0x30, 0x0c, 0x06, 0x08, 0x2a, 0x86, 0x48,
 	  0x86, 0xf7, 0x0d, 0x02, 0x05, 0x05, 0x00, 0x04, 0x10 };
 
 static guchar*
@@ -913,6 +929,15 @@ make_pkcs1_sign_hash (GChecksumType algo, const guchar *data, gsize n_data,
 	} else if (algo == G_CHECKSUM_MD5) {
 		asn = MD5_ASN;
 		n_asn = sizeof (MD5_ASN);
+	} else if (algo == G_CHECKSUM_SHA256) {
+		asn = SHA256_ASN;
+		n_asn = sizeof (SHA256_ASN);
+	} else if (algo == G_CHECKSUM_SHA384) {
+		asn = SHA384_ASN;
+		n_asn = sizeof (SHA384_ASN);
+	} else if (algo == G_CHECKSUM_SHA512) {
+		asn = SHA512_ASN;
+		n_asn = sizeof (SHA512_ASN);
 	}
 
 	n_hash = n_algo + n_asn;
@@ -991,6 +1016,21 @@ unlock_and_sign (GckSession *session, GckObject *key, gulong mech_type, const gu
 	return gck_session_sign (session, key, mech_type, input, n_input, n_result, NULL, err);
 }
 
+static GChecksumType
+ecdsa_get_hash_algorithm (GQuark oid)
+{
+	/* from rfc5656 */
+	if (oid == OID_ANSI_SECP256R1)
+		return G_CHECKSUM_SHA256;
+	else if (oid == OID_ANSI_SECP384R1)
+		return G_CHECKSUM_SHA384;
+	else if (oid == OID_ANSI_SECP521R1)
+		return G_CHECKSUM_SHA512;
+	else
+		return 0;
+}
+
+
 static gboolean
 op_sign_request (GkdSshAgentCall *call)
 {
@@ -1063,11 +1103,20 @@ op_sign_request (GkdSshAgentCall *call)
 	else
 		halgo = G_CHECKSUM_SHA1;
 
+	/* ECDSA is using SHA-2 hash algorithms based on key size */
+	if (mech == CKM_ECDSA)
+		halgo = ecdsa_get_hash_algorithm (oid);
+
+	if (halgo == 0) {
+		egg_buffer_add_byte (call->resp, GKD_SSH_RES_FAILURE);
+		return FALSE;
+	}
+
 	/* Build the hash */
-	if (mech == CKM_RSA_PKCS)
-		hash = make_pkcs1_sign_hash (halgo, data, n_data, &n_hash);
-	else
+	if (mech == CKM_DSA)
 		hash = make_raw_sign_hash (halgo, data, n_data, &n_hash);
+	else /* RSA, ECDSA */
+		hash = make_pkcs1_sign_hash (halgo, data, n_data, &n_hash);
 
 	session = gck_object_get_session (key);
 	g_return_val_if_fail (session, FALSE);
