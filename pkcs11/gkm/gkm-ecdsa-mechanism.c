@@ -31,25 +31,6 @@
 #include "egg/egg-libgcrypt.h"
 #include "egg/egg-secure-memory.h"
 
-/*
- * Private
- */
-
-static const gchar *
-gkm_ecdsa_get_hash_algorithm (gcry_sexp_t sexp)
-{
-	CK_ULONG key_bits;
-
-	/* from rfc5656 */
-	key_bits = gcry_pk_get_nbits(sexp);
-	if (key_bits <= 256)
-		return "sha256";
-	else if (key_bits <= 384)
-		return "sha384";
-	else
-		return "sha512";
-}
-
 /* ----------------------------------------------------------------------------
  * PUBLIC
  */
@@ -62,7 +43,6 @@ gkm_ecdsa_mechanism_sign (gcry_sexp_t sexp, CK_BYTE_PTR data, CK_ULONG n_data,
 	gcry_error_t gcry;
 	CK_ULONG size, key_bytes;
 	CK_RV rv;
-	const gchar *hash_alg;
 
 	g_return_val_if_fail (sexp, CKR_GENERAL_ERROR);
 	g_return_val_if_fail (n_signature, CKR_ARGUMENTS_BAD);
@@ -81,11 +61,9 @@ gkm_ecdsa_mechanism_sign (gcry_sexp_t sexp, CK_BYTE_PTR data, CK_ULONG n_data,
 		return CKR_BUFFER_TOO_SMALL;
 	}
 
-	hash_alg = gkm_ecdsa_get_hash_algorithm (sexp);
-
 	/* Prepare the input s-expression */
-	gcry = gcry_sexp_build (&splain, NULL, "(data (flags raw) (hash-algo %s) (value %b))",
-                                hash_alg, n_data, data);
+	gcry = gcry_sexp_build (&splain, NULL, "(data (flags raw) (value %b))",
+                                n_data, data);
 	g_return_val_if_fail (gcry == 0, CKR_GENERAL_ERROR);
 
 	/* Do the magic */
@@ -120,7 +98,6 @@ gkm_ecdsa_mechanism_verify (gcry_sexp_t sexp, CK_BYTE_PTR data, CK_ULONG n_data,
 	gcry_sexp_t ssig, splain;
 	gcry_error_t gcry;
 	CK_ULONG key_bytes;
-	const gchar *hash_alg;
 
 	g_return_val_if_fail (sexp, CKR_GENERAL_ERROR);
 	g_return_val_if_fail (signature, CKR_ARGUMENTS_BAD);
@@ -132,11 +109,9 @@ gkm_ecdsa_mechanism_verify (gcry_sexp_t sexp, CK_BYTE_PTR data, CK_ULONG n_data,
 	if (n_signature != key_bytes*2)
 		return CKR_SIGNATURE_LEN_RANGE;
 
-	hash_alg = gkm_ecdsa_get_hash_algorithm (sexp);
-
 	/* Prepare the input s-expressions */
-	gcry = gcry_sexp_build (&splain, NULL, "(data (flags raw) (hash-algo %s) (value %b))",
-                                hash_alg, n_data, data);
+	gcry = gcry_sexp_build (&splain, NULL, "(data (flags raw) (value %b))",
+                                n_data, data);
 	g_return_val_if_fail (gcry == 0, CKR_GENERAL_ERROR);
 
 	gcry = gcry_sexp_build (&ssig, NULL, "(sig-val (ecdsa (r %b) (s %b)))",
