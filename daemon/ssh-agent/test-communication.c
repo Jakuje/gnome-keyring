@@ -391,13 +391,18 @@ test_read_write_ecdsa (Test *test, gconstpointer unused)
 	const GckAttribute *priv_attr, *pub_attr, *new_pub_attr;
 	GckBuilder priv, pub, new_pub;
 	EggBuffer buffer, resp;
-	gsize offset = 5; /* skipping message number (4B length, 1B message) */
+	gsize offset/*, n_signature*/;
 	gchar *stype;
 	gboolean ret;
 	gulong value, algo;
+	//guchar *signature;
+	FILE *fd;
+
+	offset = 5; /* skipping message number (4B length, 1B message ID) */
 
 	/* Prepare intercepted message from  ssh-add  */
 	egg_buffer_init_static (&buffer, test->ecdsakey, test->ecdsakey_len);
+	/* This is the answer we are receiving */
 	egg_buffer_init (&resp, 128);
 
 	/* check the key type */
@@ -459,6 +464,14 @@ test_read_write_ecdsa (Test *test, gconstpointer unused)
 	pub_attr = gck_attributes_find (pub_attrs, CKA_EC_POINT);
 	g_assert (memcmp (new_pub_attr->value, pub_attr->value, new_pub_attr->length) == 0);
 
+	/* Try to sign some data with this key */
+	//signature = unlock_and_sign (session, key, mech, hash, n_hash, &n_signature, &error);
+	//gkd_ssh_agent_proto_write_signature_ecdsa (resp, signature, &n_signature);
+	fd = fopen ("/tmp/sign_request", "w");
+	fwrite (ECDSA_SIGN_REQUEST, sizeof(ECDSA_SIGN_REQUEST), 1, fd);
+	fclose (fd);
+	
+
 	/* cleanup */
 	free (stype);
 	gck_attributes_unref (priv_attrs);
@@ -467,7 +480,6 @@ test_read_write_ecdsa (Test *test, gconstpointer unused)
 	egg_buffer_uninit (&resp);
 }
 
-/*	gkd_ssh_agent_proto_write_signature_rsa (); XXX next test */
 
 int
 main (int argc, char **argv)

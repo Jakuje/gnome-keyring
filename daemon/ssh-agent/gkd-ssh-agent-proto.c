@@ -824,24 +824,54 @@ gkd_ssh_agent_proto_write_signature_dsa (EggBuffer *resp, CK_BYTE_PTR signature,
 	return egg_buffer_add_byte_array (resp, signature, n_signature);
 }
 
+static gboolean
+gkd_ssh_agent_buffer_put_rfc_mpi (EggBuffer *buffer, const guchar *val,
+                                  gsize len)
+{
+	gsize pad = 0;
+
+	/*
+	 * From RFC 4251:
+	 * If the most significant bit would be set for a positive number,
+	 * the number MUST be preceded by a zero byte.
+	 */
+	if ((val[0] & 0x80) == 0x80)
+		pad = 1;
+
+	if (!egg_buffer_add_uint32 (buffer, len + pad))
+		return 0;
+	if (pad && !egg_buffer_add_byte (buffer, 0x00))
+		return 0;
+	return egg_buffer_append (buffer, val, len);
+}
+
 gboolean
 gkd_ssh_agent_proto_write_signature_ecdsa (EggBuffer *resp, CK_BYTE_PTR signature, CK_ULONG n_signature)
 {
 	gboolean rv;
 	gsize mpi_size;
+	gsize pads = 0;
 
 	g_return_val_if_fail ((n_signature % 2) == 0, FALSE);
-
-	/* First we need header for the whole signature blob (including 2 length headers */
-	egg_buffer_add_uint32 (resp, n_signature + 8);
 
 	/* PKCS#11 lists the MPIs concatenated, SSH-agent expects the size headers */
 	mpi_size = n_signature/2;
 
-	rv = egg_buffer_add_byte_array (resp, signature, mpi_size);
+	/*
+	 * From RFC 4251, Section 5:
+	 * If the most significant bit would be set for a positive number,
+	 * the number MUST be preceded by a zero byte.
+	 */
+	pads = ((signature[0] & 0x80) == 0x80) + ((signature[mpi_size] & 0x80) == 0x80);
+
+	/* First we need header for the whole signature blob
+	 * (including 2 length headers and potential "padding")
+	 */
+	egg_buffer_add_uint32 (resp, n_signature + 8 + pads);
+
+	rv = gkd_ssh_agent_buffer_put_rfc_mpi (resp, signature, mpi_size);
 	g_return_val_if_fail (rv, FALSE);
 
-	rv = egg_buffer_add_byte_array (resp, signature+mpi_size, mpi_size);
-
+	rv = gkd_ssh_agent_buffer_put_rfc_mpi (resp, signature + mpi_size, mpi_size);
 	return rv;
 }
