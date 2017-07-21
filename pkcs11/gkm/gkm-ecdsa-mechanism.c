@@ -103,8 +103,6 @@ gkm_ecdsa_mechanism_verify (gcry_sexp_t sexp, CK_BYTE_PTR data, CK_ULONG n_data,
 	g_return_val_if_fail (data, CKR_ARGUMENTS_BAD);
 
 	key_bytes = gcry_pk_get_nbits(sexp)/8;
-	/*if (n_data != 20)
-		return CKR_DATA_LEN_RANGE;*/
 	if (n_signature != key_bytes*2)
 		return CKR_SIGNATURE_LEN_RANGE;
 

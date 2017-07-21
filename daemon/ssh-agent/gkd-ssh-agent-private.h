@@ -101,11 +101,11 @@ void                  gkd_ssh_agent_checkin_main_session            (GckSession*
  * gkd-ssh-agent-proto.c
  */
 
-void                  gkd_ssh_agent_proto_init_quarks               (void);
-
 extern GQuark OID_ANSI_SECP256R1;
 extern GQuark OID_ANSI_SECP384R1;
 extern GQuark OID_ANSI_SECP521R1;
+
+void                  gkd_ssh_agent_proto_init_quarks               (void);
 
 gulong                gkd_ssh_agent_proto_keytype_to_algo           (const gchar *salgo);
 

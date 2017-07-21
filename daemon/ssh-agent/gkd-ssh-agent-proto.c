@@ -555,7 +555,7 @@ gkd_ssh_agent_proto_read_ecdsa_curve (EggBuffer *req,
 	 * to be converted to CKA_EC_PARAMS
 	 */
 	if (!egg_buffer_get_string (req, *offset, offset, &curve_name,
-                                (EggBufferAllocator)g_realloc))
+                                    (EggBufferAllocator)g_realloc))
 		return FALSE;
 
 	oid = gkd_ssh_agent_proto_curve_to_oid (curve_name);

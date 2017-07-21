@@ -118,7 +118,7 @@ ECPrivateKey ::= SEQUENCE {
 	q  [1] BIT STRING OPTIONAL -- public key
 }
 
--- XXX wrong
+-- can't find definition anywhere
 ECPublicKey ::= SEQUENCE {
 	parameters [0] Parameters OPTIONAL, -- OID
 	q  [1] BIT STRING -- public key

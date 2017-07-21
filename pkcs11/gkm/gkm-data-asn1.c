@@ -131,7 +131,7 @@ gkm_data_asn1_write_mpi (GNode *asn, gcry_mpi_t mpi)
 	return TRUE;
 }
 
-/* ECDSA CKA_EC_POINT encodes q value as a OCTET STRING */
+/* ECDSA CKA_EC_POINT encodes q value as a OCTET STRING in PKCS#11 */
 gboolean
 gkm_data_asn1_read_string (GNode *asn, GBytes **data)
 {
@@ -159,7 +159,7 @@ gkm_data_asn1_write_string (GNode *asn, GBytes *data)
 	return TRUE;
 }
 
-/* ECDSA public key (q) is encoded as a bit string */
+/* ECDSA public key (q) is encoded as a bit string in PEM files */
 gboolean
 gkm_data_asn1_read_bit_string (GNode *asn, GBytes **data, gsize *data_bits)
 {

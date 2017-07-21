@@ -43,6 +43,9 @@ G_DEFINE_TYPE (GkmPrivateXsaKey, gkm_private_xsa_key, GKM_TYPE_SEXP_KEY);
  * INTERNAL
  */
 
+/* Can't be defined in gkm_attributes, because it does not know anything about
+ * DER encoding nor OIDs
+ */
 gboolean
 gkm_attributes_find_ecc_oid (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs, GQuark *value)
 {
@@ -357,15 +360,16 @@ gkm_private_xsa_key_real_get_attribute (GkmObject *base, GkmSession *session, CK
 	case CKA_BASE:
 		return gkm_sexp_key_set_part (GKM_SEXP_KEY (self), GCRY_PK_DSA, "g", attr);
 
-	/* (EC)DSA private parts */
-	case CKA_VALUE:
-		return CKR_ATTRIBUTE_SENSITIVE;
-
 	case CKA_EC_POINT:
 		return gkm_sexp_key_set_part_string (GKM_SEXP_KEY (self), GCRY_PK_ECC, "q", attr);
 
 	case CKA_EC_PARAMS:
 		return gkm_sexp_key_set_ec_params (GKM_SEXP_KEY (self), GCRY_PK_ECC, attr);
+
+	/* (EC)DSA private parts */
+	case CKA_VALUE:
+		return CKR_ATTRIBUTE_SENSITIVE;
+
 	};
 
 	return GKM_OBJECT_CLASS (gkm_private_xsa_key_parent_class)->get_attribute (base, session, attr);

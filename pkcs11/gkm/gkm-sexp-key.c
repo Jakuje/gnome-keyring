@@ -287,7 +287,7 @@ gkm_sexp_key_set_part_string (GkmSexpKey *self, int algo, const char *part, CK_A
 
 	if (!gkm_sexp_extract_mpi (numbers, &mpi, part, NULL))
 		g_return_val_if_reached (CKR_GENERAL_ERROR);
-	/* convert mpi to DER ENCODED bit string */
+	/* convert mpi to DER encoded OCTET string */
 	rv = gkm_data_der_encode_ecdsa_q (mpi, &data);
 	g_return_val_if_fail (rv, CKR_GENERAL_ERROR);
 
@@ -325,7 +325,7 @@ gkm_sexp_key_set_ec_params (GkmSexpKey *self, int algo, CK_ATTRIBUTE_PTR attr)
 	rv = gkm_sexp_extract_string (numbers, &curve_name, "curve", NULL);
 	g_return_val_if_fail (rv, CKR_GENERAL_ERROR);
 
-	data = gkm_data_der_curve_to_ec_params (curve_name); /* g_bytes_new ("", 0); */
+	data = gkm_data_der_curve_to_ec_params (curve_name);
 	g_return_val_if_fail (data != NULL, CKR_GENERAL_ERROR);
 
 	rv = gkm_attribute_set_bytes (attr, data);

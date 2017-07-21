@@ -211,7 +211,11 @@ gkm_data_der_decode_ecdsa_q (GBytes *data, GBytes **result)
 	g_assert (result);
 
 	asn = egg_asn1x_create_and_decode (pk_asn1_tab, "ECKeyQ", data);
-	g_return_val_if_fail (asn, FALSE);
+	/* workaround a bug in gcr (not DER encoding the MPI) */
+	if (!asn) {
+		*result = data;
+		return rv;
+	}
 
 	rv = gkm_data_asn1_read_string (asn, result);
 
@@ -673,9 +677,9 @@ gkm_data_der_read_public_key (GBytes *data, gcry_sexp_t *s_key)
 
 	res = gkm_data_der_read_public_key_rsa (data, s_key);
 	if (res == GKM_DATA_UNRECOGNIZED)
-		res = gkm_data_der_read_public_key_dsa (data, s_key);
-	if (res == GKM_DATA_UNRECOGNIZED)
 		res = gkm_data_der_read_public_key_ecdsa (data, s_key);
+	if (res == GKM_DATA_UNRECOGNIZED)
+		res = gkm_data_der_read_public_key_dsa (data, s_key);
 
 	return res;
 }
