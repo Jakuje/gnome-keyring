@@ -78,9 +78,8 @@ gkm_attributes_find_der_bytes (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs,
 	g_return_val_if_fail (rv, FALSE);
 
 	rv = gkm_data_der_decode_ecdsa_q (data, value);
-	g_return_val_if_fail (rv, FALSE);
 
-	return TRUE;
+	return rv;
 }
 
 static CK_RV
