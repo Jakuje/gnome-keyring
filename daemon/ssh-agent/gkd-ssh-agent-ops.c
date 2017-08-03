@@ -914,9 +914,6 @@ make_pkcs1_sign_hash (GChecksumType algo, const guchar *data, gsize n_data,
 	} else if (algo == G_CHECKSUM_MD5) {
 		asn = MD5_ASN;
 		n_asn = sizeof (MD5_ASN);
-	} else {
-		asn = NULL;
-		n_asn = 0;
 	}
 
 	n_hash = n_algo + n_asn;
@@ -1092,10 +1089,10 @@ op_sign_request (GkdSshAgentCall *call)
 	}
 
 	/* Build the hash */
-	if (mech == CKM_DSA)
-		hash = make_raw_sign_hash (halgo, data, n_data, &n_hash);
-	else /* RSA, ECDSA */
+	if (mech == CKM_RSA_PKCS)
 		hash = make_pkcs1_sign_hash (halgo, data, n_data, &n_hash);
+	else
+		hash = make_raw_sign_hash (halgo, data, n_data, &n_hash);
 
 	session = gck_object_get_session (key);
 	g_return_val_if_fail (session, FALSE);
