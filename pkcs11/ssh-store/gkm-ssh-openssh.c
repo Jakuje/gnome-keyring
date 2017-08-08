@@ -39,14 +39,14 @@ keytype_to_algo (const gchar *salgo)
 }
 
 static const gchar *
-keytype_to_curve (const gchar *salgo)
+curve_to_gcry (const gchar *salgo)
 {
 	g_return_val_if_fail (salgo, 0);
-	if (strcmp (salgo, "ecdsa-sha2-nistp256") == 0)
+	if (strcmp (salgo, "nistp256") == 0)
 		return "NIST P-256";
-	else if (strcmp (salgo, "ecdsa-sha2-nistp384") == 0)
+	else if (strcmp (salgo, "nistp384") == 0)
 		return "NIST P-384";
-	else if (strcmp (salgo, "ecdsa-sha2-nistp521") == 0)
+	else if (strcmp (salgo, "nistp521") == 0)
 		return "NIST P-521";
 	return NULL;
 }
@@ -105,30 +105,33 @@ read_public_dsa (EggBuffer *req, gsize *offset, gcry_sexp_t *sexp)
 #define SEXP_PUBLIC_ECDSA  \
 	"(public-key"      \
 	"  (ecdsa"         \
-	"    (curve %b)"   \
+	"    (curve %s)"   \
 	"    (q %b)))"
 
 static gboolean
-read_public_ecdsa (EggBuffer *req, gsize *offset, gcry_sexp_t *sexp, gchar *stype)
+read_public_ecdsa (EggBuffer *req, gsize *offset, gcry_sexp_t *sexp)
 {
 	int gcry;
 	const gchar *curve_name = NULL;
-	gchar *q = NULL;
+	const guchar *q = NULL;
+	size_t q_len;
+	gchar *curve = NULL;
 
-	if (!egg_buffer_get_string (req, *offset, offset, &q, (EggBufferAllocator)g_realloc))
+	if (!egg_buffer_get_string (req, *offset, offset, &curve, (EggBufferAllocator)g_realloc))
 		return FALSE;
 
-	curve_name = keytype_to_curve(stype);
+	if (!egg_buffer_get_byte_array (req, *offset, offset, &q, &q_len))
+		return FALSE;
+
+	curve_name = curve_to_gcry (curve);
 	g_return_val_if_fail (curve_name, FALSE);
 
 	gcry = gcry_sexp_build (sexp, NULL, SEXP_PUBLIC_ECDSA,
-                                strlen (curve_name), curve_name, strlen(q), q);
+                                curve_name, q_len, q);
 	if (gcry) {
 		g_warning ("couldn't parse incoming public ECDSA key: %s", gcry_strerror (gcry));
 		return FALSE;
 	}
-
-	g_free (q);
 
 	return TRUE;
 }
@@ -164,7 +167,7 @@ read_public_rsa (EggBuffer *req, gsize *offset, gcry_sexp_t *sexp)
 static gboolean
 read_public (EggBuffer *req, gsize *offset, gcry_sexp_t *key, int *algo)
 {
-	gboolean ret = FALSE;
+	gboolean ret;
 	gchar *stype;
 	int alg;
 
@@ -173,10 +176,11 @@ read_public (EggBuffer *req, gsize *offset, gcry_sexp_t *key, int *algo)
 		return FALSE;
 
 	alg = keytype_to_algo (stype);
+	g_free (stype);
 
 	if (!alg) {
 		g_warning ("unsupported algorithm from SSH: %s", stype);
-		goto out;
+		return FALSE;
 	}
 
 	switch (alg) {
@@ -187,23 +191,21 @@ read_public (EggBuffer *req, gsize *offset, gcry_sexp_t *key, int *algo)
 		ret = read_public_dsa (req, offset, key);
 		break;
 	case GCRY_PK_ECC:
-		ret = read_public_ecdsa (req, offset, key, stype);
+		ret = read_public_ecdsa (req, offset, key);
 		break;
 	default:
 		g_assert_not_reached ();
-		goto out;
+		return FALSE;
 	}
 
 	if (!ret) {
 		g_warning ("couldn't read incoming SSH private key");
-		goto out;
+		return FALSE;
 	}
 
 	if (algo)
 		*algo = alg;
-out:
-	g_free (stype);
-	return ret;
+	return TRUE;
 }
 
 static GkmDataResult
