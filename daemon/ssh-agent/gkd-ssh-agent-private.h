@@ -101,9 +101,24 @@ void                  gkd_ssh_agent_checkin_main_session            (GckSession*
  * gkd-ssh-agent-proto.c
  */
 
+extern GQuark OID_ANSI_SECP256R1;
+extern GQuark OID_ANSI_SECP384R1;
+extern GQuark OID_ANSI_SECP521R1;
+
+void                  gkd_ssh_agent_proto_init_quarks               (void);
+
 gulong                gkd_ssh_agent_proto_keytype_to_algo           (const gchar *salgo);
 
-const gchar*          gkd_ssh_agent_proto_algo_to_keytype           (gulong algo);
+const gchar*          gkd_ssh_agent_proto_algo_to_keytype           (gulong algo,
+                                                                     GQuark oid);
+
+GQuark                gkd_ssh_agent_proto_curve_to_oid              (const gchar *salgo);
+
+const gchar*          gkd_ssh_agent_proto_oid_to_curve              (GQuark oid);
+
+const gchar*          gkd_ssh_agent_proto_oid_to_keytype            (GQuark oid);
+
+GQuark                gkd_ssh_agent_proto_oid_from_params           (GckAttributes *attrs);
 
 gboolean              gkd_ssh_agent_proto_read_mpi                  (EggBuffer *req,
                                                                      gsize *offset,
@@ -119,10 +134,22 @@ const guchar*         gkd_ssh_agent_proto_read_challenge_v1         (EggBuffer *
                                                                      gsize *offset,
                                                                      gsize *n_challenge);
 
+gboolean              gkd_ssh_agent_proto_read_string_to_der        (EggBuffer *req,
+                                                                     gsize *offset,
+                                                                     GckBuilder *attrs,
+                                                                     CK_ATTRIBUTE_TYPE type);
+
+gboolean              gkd_ssh_agent_proto_read_ecdsa_curve          (EggBuffer *req,
+                                                                     gsize *offset,
+                                                                     GckBuilder *attrs);
+
 gboolean              gkd_ssh_agent_proto_write_mpi                 (EggBuffer *resp,
                                                                      const GckAttribute *attr);
 
 gboolean              gkd_ssh_agent_proto_write_mpi_v1              (EggBuffer *resp,
+                                                                     const GckAttribute *attr);
+
+gboolean              gkd_ssh_agent_proto_write_string              (EggBuffer *resp,
                                                                      const GckAttribute *attr);
 
 gboolean              gkd_ssh_agent_proto_read_public               (EggBuffer *req,
@@ -138,6 +165,10 @@ gboolean              gkd_ssh_agent_proto_read_public_dsa           (EggBuffer *
                                                                      gsize *offset,
                                                                      GckBuilder *attrs);
 
+gboolean              gkd_ssh_agent_proto_read_public_ecdsa         (EggBuffer *req,
+                                                                     gsize *offset,
+                                                                     GckBuilder *attrs);
+
 gboolean              gkd_ssh_agent_proto_read_public_v1            (EggBuffer *req,
                                                                      gsize *offset,
                                                                      GckBuilder *attrs);
@@ -148,6 +179,11 @@ gboolean              gkd_ssh_agent_proto_read_pair_rsa             (EggBuffer *
                                                                      GckBuilder *pub);
 
 gboolean              gkd_ssh_agent_proto_read_pair_dsa             (EggBuffer *req,
+                                                                     gsize *offset,
+                                                                     GckBuilder *priv,
+                                                                     GckBuilder *pub);
+
+gboolean              gkd_ssh_agent_proto_read_pair_ecdsa           (EggBuffer *req,
                                                                      gsize *offset,
                                                                      GckBuilder *priv,
                                                                      GckBuilder *pub);
@@ -166,6 +202,9 @@ gboolean              gkd_ssh_agent_proto_write_public_rsa          (EggBuffer *
 gboolean              gkd_ssh_agent_proto_write_public_dsa          (EggBuffer *resp,
                                                                      GckAttributes *attrs);
 
+gboolean              gkd_ssh_agent_proto_write_public_ecdsa        (EggBuffer *resp,
+                                                                     GckAttributes *attrs);
+
 gboolean              gkd_ssh_agent_proto_write_public_v1           (EggBuffer *resp,
                                                                      GckAttributes *attrs);
 
@@ -174,6 +213,10 @@ gboolean              gkd_ssh_agent_proto_write_signature_rsa       (EggBuffer *
                                                                      CK_ULONG n_signature);
 
 gboolean              gkd_ssh_agent_proto_write_signature_dsa       (EggBuffer *resp,
+                                                                     CK_BYTE_PTR signature,
+                                                                     CK_ULONG n_signature);
+
+gboolean              gkd_ssh_agent_proto_write_signature_ecdsa     (EggBuffer *resp,
                                                                      CK_BYTE_PTR signature,
                                                                      CK_ULONG n_signature);
 

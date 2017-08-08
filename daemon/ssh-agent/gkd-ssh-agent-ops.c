@@ -112,6 +112,11 @@ build_like_attributes (GckAttributes *attrs, CK_OBJECT_CLASS klass)
 		copy_attribute (attrs, CKA_VALUE, &builder);
 		break;
 
+	case CKK_EC:
+		copy_attribute (attrs, CKA_EC_PARAMS, &builder);
+		copy_attribute (attrs, CKA_EC_POINT, &builder);
+		break;
+
 	default:
 		g_return_val_if_reached (NULL);
 		break;
@@ -306,7 +311,8 @@ load_identity_v2_attributes (GckObject *object, gpointer user_data)
 
 	attrs = gck_object_get (object, NULL, &error, CKA_ID, CKA_LABEL, CKA_KEY_TYPE, CKA_MODULUS,
 	                        CKA_PUBLIC_EXPONENT, CKA_PRIME, CKA_SUBPRIME, CKA_BASE,
-	                        CKA_VALUE, CKA_CLASS, CKA_MODULUS_BITS, CKA_TOKEN, GCK_INVALID);
+	                        CKA_VALUE, CKA_CLASS, CKA_MODULUS_BITS, CKA_TOKEN,
+	                        CKA_EC_POINT, CKA_EC_PARAMS, GCK_INVALID);
 	if (error) {
 		g_warning ("error retrieving attributes for public key: %s", egg_error_message (error));
 		g_clear_error (&error);
@@ -643,6 +649,9 @@ op_add_identity (GkdSshAgentCall *call)
 	case CKK_DSA:
 		ret = gkd_ssh_agent_proto_read_pair_dsa (call->req, &offset, &priv, &pub);
 		break;
+	case CKK_EC:
+		ret = gkd_ssh_agent_proto_read_pair_ecdsa (call->req, &offset, &priv, &pub);
+		break;
 	default:
 		g_assert_not_reached ();
 		return FALSE;
@@ -875,12 +884,13 @@ op_v1_request_identities (GkdSshAgentCall *call)
 	return TRUE;
 }
 
+/* XXX we should create these using asn1x ... */
 static const guchar SHA1_ASN[15] = /* Object ID is 1.3.14.3.2.26 */
 	{ 0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03,
 	  0x02, 0x1a, 0x05, 0x00, 0x04, 0x14 };
 
 static const guchar MD5_ASN[18] = /* Object ID is 1.2.840.113549.2.5 */
-	{ 0x30, 0x20, 0x30, 0x0c, 0x06, 0x08, 0x2a, 0x86,0x48,
+	{ 0x30, 0x20, 0x30, 0x0c, 0x06, 0x08, 0x2a, 0x86, 0x48,
 	  0x86, 0xf7, 0x0d, 0x02, 0x05, 0x05, 0x00, 0x04, 0x10 };
 
 static guchar*
@@ -982,6 +992,21 @@ unlock_and_sign (GckSession *session, GckObject *key, gulong mech_type, const gu
 	return gck_session_sign (session, key, mech_type, input, n_input, n_result, NULL, err);
 }
 
+static GChecksumType
+ecdsa_get_hash_algorithm (GQuark oid)
+{
+	/* from rfc5656 */
+	if (oid == OID_ANSI_SECP256R1)
+		return G_CHECKSUM_SHA256;
+	else if (oid == OID_ANSI_SECP384R1)
+		return G_CHECKSUM_SHA384;
+	else if (oid == OID_ANSI_SECP521R1)
+		return G_CHECKSUM_SHA512;
+	else
+		return 0;
+}
+
+
 static gboolean
 op_sign_request (GkdSshAgentCall *call)
 {
@@ -1002,8 +1027,11 @@ op_sign_request (GkdSshAgentCall *call)
 	gulong algo, mech;
 	GChecksumType halgo;
 	gsize n_hash = 0;
+	GQuark oid = 0;
 
 	offset = 5;
+
+	gkd_ssh_agent_proto_init_quarks ();
 
 	/* The key packet size */
 	if (!egg_buffer_get_uint32 (call->req, offset, &offset, &sz))
@@ -1022,7 +1050,12 @@ op_sign_request (GkdSshAgentCall *call)
 		mech = CKM_RSA_PKCS;
 	else if (algo == CKK_DSA)
 		mech = CKM_DSA;
-	else
+	else if (algo == CKK_EC) {
+		mech = CKM_ECDSA;
+		oid = gkd_ssh_agent_proto_oid_from_params (attrs);
+		if (!oid)
+			return FALSE;
+	} else
 		g_return_val_if_reached (FALSE);
 
 	if (!egg_buffer_get_byte_array (call->req, offset, &offset, &data, &n_data) ||
@@ -1045,6 +1078,15 @@ op_sign_request (GkdSshAgentCall *call)
 		halgo = G_CHECKSUM_MD5;
 	else
 		halgo = G_CHECKSUM_SHA1;
+
+	/* ECDSA is using SHA-2 hash algorithms based on key size */
+	if (mech == CKM_ECDSA)
+		halgo = ecdsa_get_hash_algorithm (oid);
+
+	if (halgo == 0) {
+		egg_buffer_add_byte (call->resp, GKD_SSH_RES_FAILURE);
+		return FALSE;
+	}
 
 	/* Build the hash */
 	if (mech == CKM_RSA_PKCS)
@@ -1076,7 +1118,7 @@ op_sign_request (GkdSshAgentCall *call)
 	blobpos = call->resp->len;
 	egg_buffer_add_uint32 (call->resp, 0);
 
-	salgo = gkd_ssh_agent_proto_algo_to_keytype (algo);
+	salgo = gkd_ssh_agent_proto_algo_to_keytype (algo, oid);
 	g_assert (salgo);
 	egg_buffer_add_string (call->resp, salgo);
 
@@ -1087,6 +1129,10 @@ op_sign_request (GkdSshAgentCall *call)
 
 	case CKK_DSA:
 		ret = gkd_ssh_agent_proto_write_signature_dsa (call->resp, result, n_result);
+		break;
+
+	case CKK_EC:
+		ret = gkd_ssh_agent_proto_write_signature_ecdsa (call->resp, result, n_result);
 		break;
 
 	default:
