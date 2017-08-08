@@ -732,7 +732,7 @@ gkd_ssh_agent_proto_write_public_ecdsa (EggBuffer *resp, GckAttributes *attrs)
 {
 	const GckAttribute *attr;
 	GQuark oid;
-	const gchar *key_type;
+	const gchar *curve;
 	guchar *data;
 	const guchar *q_data;
 	GBytes *bytes, *q;
@@ -748,14 +748,14 @@ gkd_ssh_agent_proto_write_public_ecdsa (EggBuffer *resp, GckAttributes *attrs)
 	oid = gkd_ssh_agent_proto_oid_from_params (attrs);
 	g_return_val_if_fail (oid, FALSE);
 
-	key_type = gkd_ssh_agent_proto_oid_to_curve (oid);
-	g_return_val_if_fail (key_type != NULL, FALSE);
+	curve = gkd_ssh_agent_proto_oid_to_curve (oid);
+	g_return_val_if_fail (curve != NULL, FALSE);
 
-	data = egg_buffer_add_byte_array_empty (resp, strlen (key_type));
+	data = egg_buffer_add_byte_array_empty (resp, strlen (curve));
 	if (data == NULL)
 		return FALSE;
 
-	memcpy (data, key_type, strlen(key_type));
+	memcpy (data, curve, strlen(curve));
 
 	/* decode DER-encoded value Q */
 	attr = gck_attributes_find (attrs, CKA_EC_POINT);
