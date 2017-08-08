@@ -64,6 +64,15 @@ CK_RV                gkm_sexp_key_set_part                (GkmSexpKey *self,
                                                            const char *part,
                                                            CK_ATTRIBUTE_PTR attr);
 
+CK_RV                gkm_sexp_key_set_ec_params           (GkmSexpKey *self,
+                                                           int algo,
+                                                           CK_ATTRIBUTE_PTR attr);
+
+CK_RV                gkm_sexp_key_set_part_string         (GkmSexpKey *self,
+                                                           int algo,
+                                                           const char *part,
+                                                           CK_ATTRIBUTE_PTR attr);
+
 GkmSexp*             gkm_sexp_key_acquire_crypto_sexp     (GkmSexpKey *self,
                                                            GkmSession *session);
 
