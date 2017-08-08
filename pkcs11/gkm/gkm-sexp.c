@@ -198,16 +198,16 @@ static gcry_sexp_t
 ecdsa_numbers_to_public (gcry_sexp_t ecdsa)
 {
 	gchar *curve_name = NULL, *q = NULL;
-	gsize curve_name_len, q_len;
+	gsize q_len;
 	gcry_sexp_t pubkey = NULL;
 	gcry_error_t gcry;
 
-	if (!gkm_sexp_extract_buffer (ecdsa, &curve_name, &curve_name_len, "curve", NULL) ||
+	if (!gkm_sexp_extract_string (ecdsa, &curve_name, "curve", NULL) ||
 	    !gkm_sexp_extract_buffer (ecdsa, &q, &q_len, "q", NULL))
 		goto done;
 
-	gcry = gcry_sexp_build (&pubkey, NULL, "(public-key (ecdsa (curve %b) (q %b)))",
-	                        curve_name_len, curve_name, q_len, q);
+	gcry = gcry_sexp_build (&pubkey, NULL, "(public-key (ecdsa (curve %s) (q %b)))",
+	                        curve_name, q_len, q);
 	if (gcry)
 		goto done;
 	g_assert (pubkey);
