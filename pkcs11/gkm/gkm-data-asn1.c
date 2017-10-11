@@ -26,9 +26,8 @@
 
 #include "egg/egg-asn1x.h"
 
-/* ECDSA private key (d) is OCTET STRING encoded MPI */
-gboolean
-gkm_data_asn1_read_string_mpi (GNode *asn, gcry_mpi_t *mpi)
+static gboolean
+gkm_data_asn1_read_mpi_internal (GNode *asn, gcry_mpi_t *mpi, GBytes *(*asn1_get)(GNode *))
 {
 	gcry_error_t gcry;
 	GBytes *buf;
@@ -37,7 +36,7 @@ gkm_data_asn1_read_string_mpi (GNode *asn, gcry_mpi_t *mpi)
 	g_return_val_if_fail (asn, FALSE);
 	g_return_val_if_fail (mpi, FALSE);
 
-	buf = egg_asn1x_get_string_as_bytes (asn);
+	buf = asn1_get (asn);
 	if (!buf)
 		return FALSE;
 
@@ -49,86 +48,59 @@ gkm_data_asn1_read_string_mpi (GNode *asn, gcry_mpi_t *mpi)
 		return FALSE;
 
 	return TRUE;
+}
+
+static gboolean
+gkm_data_asn1_write_mpi_internal (GNode *asn, gcry_mpi_t mpi, void (*asn1_set)(GNode *, GBytes *))
+{
+	gcry_error_t gcry;
+	GBytes *bytes;
+	gsize len;
+	guchar *buf;
+
+	g_return_val_if_fail (asn, FALSE);
+	g_return_val_if_fail (mpi, FALSE);
+
+	/* Get the size */
+	gcry = gcry_mpi_print (GCRYMPI_FMT_STD, NULL, 0, &len, mpi);
+	g_return_val_if_fail (gcry == 0, FALSE);
+	g_return_val_if_fail (len > 0, FALSE);
+
+	buf = gcry_calloc_secure (len, 1);
+
+	gcry = gcry_mpi_print (GCRYMPI_FMT_STD, buf, len, &len, mpi);
+	g_return_val_if_fail (gcry == 0, FALSE);
+
+	bytes = g_bytes_new_with_free_func (buf, len, gcry_free, buf);
+	asn1_set (asn, bytes);
+	g_bytes_unref (bytes);
+
+	return TRUE;
+}
+
+/* ECDSA private key (d) is OCTET STRING encoded MPI */
+gboolean
+gkm_data_asn1_read_string_mpi (GNode *asn, gcry_mpi_t *mpi)
+{
+	return gkm_data_asn1_read_mpi_internal (asn, mpi, egg_asn1x_get_string_as_bytes);
 }
 
 gboolean
 gkm_data_asn1_write_string_mpi (GNode *asn, gcry_mpi_t mpi)
 {
-	gcry_error_t gcry;
-	GBytes *bytes;
-	gsize len;
-	guchar *buf;
-
-	g_return_val_if_fail (asn, FALSE);
-	g_return_val_if_fail (mpi, FALSE);
-
-	/* Get the size */
-	gcry = gcry_mpi_print (GCRYMPI_FMT_STD, NULL, 0, &len, mpi);
-	g_return_val_if_fail (gcry == 0, FALSE);
-	g_return_val_if_fail (len > 0, FALSE);
-
-	buf = gcry_calloc_secure (len, 1);
-
-	gcry = gcry_mpi_print (GCRYMPI_FMT_STD, buf, len, &len, mpi);
-	g_return_val_if_fail (gcry == 0, FALSE);
-
-	bytes = g_bytes_new_with_free_func (buf, len, gcry_free, buf);
-	egg_asn1x_set_string_as_bytes (asn, bytes);
-	g_bytes_unref (bytes);
-
-	return TRUE;
+	return gkm_data_asn1_write_mpi_internal (asn, mpi, egg_asn1x_set_string_as_bytes);
 }
 
 gboolean
 gkm_data_asn1_read_mpi (GNode *asn, gcry_mpi_t *mpi)
 {
-	gcry_error_t gcry;
-	GBytes *buf;
-	gsize sz;
-
-	g_return_val_if_fail (asn, FALSE);
-	g_return_val_if_fail (mpi, FALSE);
-
-	buf = egg_asn1x_get_integer_as_raw (asn);
-	if (!buf)
-		return FALSE;
-
-	/* Automatically stores in secure memory if DER data is secure */
-	sz = g_bytes_get_size (buf);
-	gcry = gcry_mpi_scan (mpi, GCRYMPI_FMT_STD, g_bytes_get_data (buf, NULL), sz, &sz);
-	g_bytes_unref (buf);
-	if (gcry != 0)
-		return FALSE;
-
-	return TRUE;
+	return gkm_data_asn1_read_mpi_internal (asn, mpi, egg_asn1x_get_integer_as_raw);
 }
 
 gboolean
 gkm_data_asn1_write_mpi (GNode *asn, gcry_mpi_t mpi)
 {
-	gcry_error_t gcry;
-	GBytes *bytes;
-	gsize len;
-	guchar *buf;
-
-	g_return_val_if_fail (asn, FALSE);
-	g_return_val_if_fail (mpi, FALSE);
-
-	/* Get the size */
-	gcry = gcry_mpi_print (GCRYMPI_FMT_STD, NULL, 0, &len, mpi);
-	g_return_val_if_fail (gcry == 0, FALSE);
-	g_return_val_if_fail (len > 0, FALSE);
-
-	buf = gcry_calloc_secure (len, 1);
-
-	gcry = gcry_mpi_print (GCRYMPI_FMT_STD, buf, len, &len, mpi);
-	g_return_val_if_fail (gcry == 0, FALSE);
-
-	bytes = g_bytes_new_with_free_func (buf, len, gcry_free, buf);
-	egg_asn1x_set_integer_as_raw (asn, bytes);
-	g_bytes_unref (bytes);
-
-	return TRUE;
+	return gkm_data_asn1_write_mpi_internal (asn, mpi, egg_asn1x_set_integer_as_raw);
 }
 
 /* ECDSA CKA_EC_POINT encodes q value as a OCTET STRING in PKCS#11 */
