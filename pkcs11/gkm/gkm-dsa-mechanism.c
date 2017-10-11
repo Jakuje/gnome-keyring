@@ -90,7 +90,7 @@ gkm_dsa_mechanism_sign (gcry_sexp_t sexp, CK_BYTE_PTR data, CK_ULONG n_data,
 	}
 
 	gcry_sexp_release (ssig);
-	return CKR_OK;
+	return rv;
 }
 
 CK_RV
