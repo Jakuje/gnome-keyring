@@ -67,7 +67,7 @@ gboolean               gkm_attributes_find_ecc_oid                (CK_ATTRIBUTE_
                                                                    CK_ULONG n_attrs,
                                                                    GQuark *value);
 
-gboolean               gkm_attributes_find_der_bytes              (CK_ATTRIBUTE_PTR attrs,
+gboolean               gkm_attributes_find_ecc_q                  (CK_ATTRIBUTE_PTR attrs,
                                                                    CK_ULONG n_attrs,
                                                                    CK_ATTRIBUTE_TYPE type,
                                                                    GBytes **value);

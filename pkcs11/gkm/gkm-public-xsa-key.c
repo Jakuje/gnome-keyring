@@ -152,7 +152,7 @@ create_ecdsa_public (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs, gcry_sexp_t *skey
 	CK_RV ret;
 
 	if (!gkm_attributes_find_ecc_oid (attrs, n_attrs, &oid) ||
-	    !gkm_attributes_find_der_bytes (attrs, n_attrs, CKA_EC_POINT, &q)) {
+	    !gkm_attributes_find_ecc_q (attrs, n_attrs, CKA_EC_POINT, &q)) {
 		ret = CKR_TEMPLATE_INCOMPLETE;
 		goto done;
 	}

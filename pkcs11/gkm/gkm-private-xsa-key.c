@@ -71,8 +71,8 @@ gkm_attributes_find_ecc_oid (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs, GQuark *v
 }
 
 gboolean
-gkm_attributes_find_der_bytes (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs,
-                               CK_ATTRIBUTE_TYPE type, GBytes **value)
+gkm_attributes_find_ecc_q (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs,
+                           CK_ATTRIBUTE_TYPE type, GBytes **value)
 {
 	GBytes *data;
 	gboolean rv;
@@ -198,7 +198,7 @@ create_ecdsa_private (CK_ATTRIBUTE_PTR attrs, CK_ULONG n_attrs, gcry_sexp_t *ske
 	CK_RV ret;
 
 	if (!gkm_attributes_find_ecc_oid (attrs, n_attrs, &oid) ||
-	    !gkm_attributes_find_der_bytes (attrs, n_attrs, CKA_EC_POINT, &q) ||
+	    !gkm_attributes_find_ecc_q (attrs, n_attrs, CKA_EC_POINT, &q) ||
 	    !gkm_attributes_find_mpi (attrs, n_attrs, CKA_VALUE, &d)) {
 		ret = CKR_TEMPLATE_INCOMPLETE;
 		goto done;
