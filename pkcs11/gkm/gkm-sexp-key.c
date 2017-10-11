@@ -231,8 +231,9 @@ gkm_sexp_key_get_algorithm (GkmSexpKey *self)
 	return algorithm;
 }
 
-CK_RV
-gkm_sexp_key_set_part (GkmSexpKey *self, int algo, const char *part, CK_ATTRIBUTE_PTR attr)
+static CK_RV
+gkm_sexp_key_set_part_encode (GkmSexpKey *self, int algo, const char *part,
+                              CK_ATTRIBUTE_PTR attr, int der_encode)
 {
 	gcry_sexp_t numbers;
 	gcry_mpi_t mpi;
@@ -255,7 +256,20 @@ gkm_sexp_key_set_part (GkmSexpKey *self, int algo, const char *part, CK_ATTRIBUT
 
 	if (!gkm_sexp_extract_mpi (numbers, &mpi, part, NULL))
 		g_return_val_if_reached (CKR_GENERAL_ERROR);
-	rv = gkm_attribute_set_mpi (attr, mpi);
+
+	if (der_encode) {
+		/* convert mpi to DER encoded OCTET string */
+		GBytes *data;
+
+		rv = gkm_data_der_encode_ecdsa_q (mpi, &data);
+		g_return_val_if_fail (rv, CKR_GENERAL_ERROR);
+
+		rv = gkm_attribute_set_bytes (attr, data);
+		g_bytes_unref (data);
+	} else {
+		rv = gkm_attribute_set_mpi (attr, mpi);
+	}
+
 	gcry_sexp_release (numbers);
 	gcry_mpi_release (mpi);
 
@@ -263,40 +277,15 @@ gkm_sexp_key_set_part (GkmSexpKey *self, int algo, const char *part, CK_ATTRIBUT
 }
 
 CK_RV
-gkm_sexp_key_set_part_string (GkmSexpKey *self, int algo, const char *part, CK_ATTRIBUTE_PTR attr)
+gkm_sexp_key_set_part (GkmSexpKey *self, int algo, const char *part, CK_ATTRIBUTE_PTR attr)
 {
-	gcry_sexp_t numbers;
-	gcry_mpi_t mpi;
-	int algorithm;
-	CK_RV rv;
-	GBytes *data;
+	return gkm_sexp_key_set_part_encode (self, algo, part, attr, 0);
+}
 
-	g_return_val_if_fail (GKM_IS_SEXP_KEY (self), CKR_GENERAL_ERROR);
-	g_return_val_if_fail (self->pv->base_sexp, CKR_GENERAL_ERROR);
-
-	if (!gkm_sexp_parse_key (gkm_sexp_get (self->pv->base_sexp),
-	                                &algorithm, NULL, &numbers))
-		g_return_val_if_reached (CKR_GENERAL_ERROR);
-
-	if (algorithm != algo) {
-		gcry_sexp_release (numbers);
-		gkm_debug ("CKR_ATTRIBUTE_TYPE_INVALID: attribute %s not valid for key algorithm: %s",
-		           gkm_log_attr_type (attr->type), gcry_pk_algo_name (algo));
-		return CKR_ATTRIBUTE_TYPE_INVALID;
-	}
-
-	if (!gkm_sexp_extract_mpi (numbers, &mpi, part, NULL))
-		g_return_val_if_reached (CKR_GENERAL_ERROR);
-	/* convert mpi to DER encoded OCTET string */
-	rv = gkm_data_der_encode_ecdsa_q (mpi, &data);
-	g_return_val_if_fail (rv, CKR_GENERAL_ERROR);
-
-	rv = gkm_attribute_set_bytes (attr, data);
-	gcry_sexp_release (numbers);
-	gcry_mpi_release (mpi);
-	g_bytes_unref (data);
-
-	return rv;
+CK_RV
+gkm_sexp_key_set_ec_q (GkmSexpKey *self, int algo, CK_ATTRIBUTE_PTR attr)
+{
+	return gkm_sexp_key_set_part_encode (self, algo, "q", attr, 1);
 }
 
 CK_RV

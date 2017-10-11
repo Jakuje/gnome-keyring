@@ -361,7 +361,7 @@ gkm_private_xsa_key_real_get_attribute (GkmObject *base, GkmSession *session, CK
 		return gkm_sexp_key_set_part (GKM_SEXP_KEY (self), GCRY_PK_DSA, "g", attr);
 
 	case CKA_EC_POINT:
-		return gkm_sexp_key_set_part_string (GKM_SEXP_KEY (self), GCRY_PK_ECC, "q", attr);
+		return gkm_sexp_key_set_ec_q (GKM_SEXP_KEY (self), GCRY_PK_ECC, attr);
 
 	case CKA_EC_PARAMS:
 		return gkm_sexp_key_set_ec_params (GKM_SEXP_KEY (self), GCRY_PK_ECC, attr);
