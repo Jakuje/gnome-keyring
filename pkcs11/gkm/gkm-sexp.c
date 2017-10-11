@@ -213,7 +213,7 @@ ecdsa_numbers_to_public (gcry_sexp_t ecdsa)
 	g_assert (pubkey);
 
 done:
-	free (curve_name);
+	g_free (curve_name);
 	free (q);
 
 	return pubkey;
@@ -283,10 +283,14 @@ gkm_sexp_extract_string (gcry_sexp_t sexp, gchar **buf, ...)
 	va_end (va);
 
 	*buf = NULL;
-	if (at)
-		*buf = gcry_sexp_nth_string (at ? at : sexp, 1);
-	if (at)
+	if (at) {
+		char *tmp;
+
+		tmp = gcry_sexp_nth_string (at ? at : sexp, 1);
+		*buf = g_strdup (tmp);
+		gcry_free (tmp);
 		gcry_sexp_release (at);
+	}
 
 	return (*buf) ? TRUE : FALSE;
 }

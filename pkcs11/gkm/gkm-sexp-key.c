@@ -319,6 +319,7 @@ gkm_sexp_key_set_ec_params (GkmSexpKey *self, int algo, CK_ATTRIBUTE_PTR attr)
 
 	rv = gkm_attribute_set_bytes (attr, data);
 	g_bytes_unref (data);
+	g_free (curve_name);
 
 	return rv;
 }
