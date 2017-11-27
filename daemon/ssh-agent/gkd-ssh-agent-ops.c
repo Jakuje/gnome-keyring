@@ -884,6 +884,17 @@ op_v1_request_identities (GkdSshAgentCall *call)
 	return TRUE;
 }
 
+/* XXX we should create it using asn1x ... */
+static const guchar SHA512_ASN[] = /* Object ID is 2.16.840.1.101.3.4.2.3  */
+	{ 0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48,
+	  0x01, 0x65, 0x03, 0x04, 0x02, 0x03, 0x05, 0x00, 0x04,
+	  0x40 };
+
+static const guchar SHA256_ASN[] = /* Object ID is 2.16.840.1.101.3.4.2.1  */
+	{ 0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48,
+	  0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04,
+	  0x20 };
+
 static const guchar SHA1_ASN[15] = /* Object ID is 1.3.14.3.2.26 */
 	{ 0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03,
 	  0x02, 0x1a, 0x05, 0x00, 0x04, 0x14 };
@@ -910,9 +921,17 @@ make_pkcs1_sign_hash (GChecksumType algo, const guchar *data, gsize n_data,
 	if (algo == G_CHECKSUM_SHA1) {
 		asn = SHA1_ASN;
 		n_asn = sizeof (SHA1_ASN);
+	} else if (algo == G_CHECKSUM_SHA256) {
+		asn = SHA256_ASN;
+		n_asn = sizeof (SHA256_ASN);
+	} else if (algo == G_CHECKSUM_SHA512) {
+		asn = SHA512_ASN;
+		n_asn = sizeof (SHA512_ASN);
 	} else if (algo == G_CHECKSUM_MD5) {
 		asn = MD5_ASN;
 		n_asn = sizeof (MD5_ASN);
+	} else {
+		g_assert_not_reached();
 	}
 
 	n_hash = n_algo + n_asn;
@@ -1056,6 +1075,8 @@ op_sign_request (GkdSshAgentCall *call)
 		return TRUE;
 	}
 
+	/* Usually we hash the data with SHA1 */
+	halgo = G_CHECKSUM_SHA1;
 	if (mech == CKM_ECDSA) {
 		/* ECDSA is using SHA-2 hash algorithms based on key size */
 		gint ret = gkd_ssh_agent_proto_curve_oid_to_hash_algo (oid);
@@ -1066,9 +1087,13 @@ op_sign_request (GkdSshAgentCall *call)
 		halgo = (GChecksumType) ret;
 	} else if (flags & GKD_SSH_FLAG_OLD_SIGNATURE) {
 		halgo = G_CHECKSUM_MD5;
-	} else {
-		/* Usually we hash the data with SHA1 */
-		halgo = G_CHECKSUM_SHA1;
+	} else if (mech == CKM_RSA_PKCS) {
+		/* draft-ietf-curdle-rsa-sha2-12 */
+		if (flags & GKD_SSH_FLAG_RSA_SHA2_256) {
+			halgo = G_CHECKSUM_SHA256;
+		} else if (flags & GKD_SSH_FLAG_RSA_SHA2_512) {
+			halgo = G_CHECKSUM_SHA512;
+		}
 	}
 
 	/* Build the hash */
@@ -1101,7 +1126,7 @@ op_sign_request (GkdSshAgentCall *call)
 	blobpos = call->resp->len;
 	egg_buffer_add_uint32 (call->resp, 0);
 
-	salgo = gkd_ssh_agent_proto_algo_to_keytype (algo, oid);
+	salgo = gkd_ssh_agent_proto_algo_to_keytype (algo, oid, halgo);
 	g_assert (salgo);
 	egg_buffer_add_string (call->resp, salgo);
 

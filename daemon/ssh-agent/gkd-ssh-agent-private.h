@@ -79,6 +79,8 @@ typedef struct _GkdSshAgentCall {
 
 #define GKD_SSH_DSA_SIGNATURE_PADDING                   20
 #define	GKD_SSH_FLAG_OLD_SIGNATURE                      0x01
+#define	GKD_SSH_FLAG_RSA_SHA2_256                       0x02
+#define	GKD_SSH_FLAG_RSA_SHA2_512                       0x04
 
 /* -----------------------------------------------------------------------------
  * gkd-ssh-agent-ops.c
@@ -104,7 +106,8 @@ void                  gkd_ssh_agent_checkin_main_session            (GckSession*
 gulong                gkd_ssh_agent_proto_keytype_to_algo           (const gchar *salgo);
 
 const gchar*          gkd_ssh_agent_proto_algo_to_keytype           (gulong algo,
-                                                                     GQuark oid);
+                                                                     GQuark oid,
+                                                                     GChecksumType halgo);
 
 GQuark                gkd_ssh_agent_proto_curve_to_oid              (const gchar *salgo);
 

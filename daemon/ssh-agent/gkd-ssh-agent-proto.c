@@ -66,7 +66,9 @@ gulong
 gkd_ssh_agent_proto_keytype_to_algo (const gchar *salgo)
 {
 	g_return_val_if_fail (salgo, G_MAXULONG);
-	if (strcmp (salgo, "ssh-rsa") == 0)
+	if (strcmp (salgo, "ssh-rsa") == 0 ||
+	    strcmp (salgo, "rsa-sha2-256") == 0 ||
+	    strcmp (salgo, "rsa-sha2-512") == 0)
 		return CKK_RSA;
 	else if (strcmp (salgo, "ssh-dss") == 0)
 		return CKK_DSA;
@@ -147,10 +149,14 @@ gkd_ssh_agent_proto_curve_oid_to_keytype (GQuark oid)
 }
 
 const gchar*
-gkd_ssh_agent_proto_algo_to_keytype (gulong algo, GQuark curve_oid)
+gkd_ssh_agent_proto_algo_to_keytype (gulong algo, GQuark curve_oid, GChecksumType halgo)
 {
 	if (algo == CKK_RSA) {
 		g_return_val_if_fail (curve_oid == 0, NULL);
+		if (halgo == G_CHECKSUM_SHA256)
+			return "rsa-sha2-256";
+		else if (halgo == G_CHECKSUM_SHA512)
+			return "rsa-sha2-512";
 		return "ssh-rsa";
 	} else if (algo == CKK_DSA) {
 		g_return_val_if_fail (curve_oid == 0, NULL);
@@ -675,7 +681,7 @@ gkd_ssh_agent_proto_write_public (EggBuffer *resp, GckAttributes *attrs)
 			return FALSE;
 	}
 
-	salgo = gkd_ssh_agent_proto_algo_to_keytype (algo, oid);
+	salgo = gkd_ssh_agent_proto_algo_to_keytype (algo, oid, 0);
 	g_assert (salgo);
 	egg_buffer_add_string (resp, salgo);
 
